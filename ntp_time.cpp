@@ -1,5 +1,6 @@
 #include "ntp_time.h"
 #include <time.h>
+#include <Wifi.h>
 
 static const char* ntpServer;
 static const char* tzEnv;
@@ -16,6 +17,9 @@ void initTime(const char* tz, const char* server) {
 }
 
 void syncTimeIfNeeded() {
+   if (WiFi.status() != WL_CONNECTED)
+    return;
+  
   unsigned long now = millis();
   if (now - lastNtpSync >= syncInterval || lastNtpSync == 0) {
     Serial.println("Syncing time from NTP...");
@@ -27,6 +31,8 @@ void syncTimeIfNeeded() {
 }
 
 void printLocalTime() {
+  if (WiFi.status() != WL_CONNECTED)
+    return;
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
     Serial.println("Failed to obtain time");

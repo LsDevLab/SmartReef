@@ -15,6 +15,8 @@ void setup() {
   delay(1000); // Give time to initialize serial
 
   Serial.println("\nStarting Smart Aquarium System (v.0.0.1)...\n");
+  
+  ledStatus.begin();
 
   startResetButtonTask((gpio_num_t)17, 5000);
   
@@ -33,10 +35,6 @@ void setup() {
 
 void loop() {
 
-    checkNetwork();
-
-    syncTimeIfNeeded();
-
     //readAllSensors();
 
     controlActuators();
@@ -52,6 +50,10 @@ void loop() {
       app.loop();
       ElegantOTA.loop();
     }
+
+    checkNetwork();
+
+    syncTimeIfNeeded();
 
 }
 

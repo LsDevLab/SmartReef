@@ -5,7 +5,7 @@
 #include "ntp_time.h"
 
 void printStatus() {
-  Serial.println("===================== Aquarium Status =====================");
+  Serial.println("\n===================== Aquarium Status =====================");
 
   printLocalTime();
 

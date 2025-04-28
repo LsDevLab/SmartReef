@@ -5,8 +5,6 @@
 #include "wifi_setup.h"
 #include "rest_ota_server.h"
 
-#define BUTTON_PIN 0            // Pushbutton (connected to GND when pressed)
-
 Preferences prefs;
 WebServer configServer(80);
 
@@ -33,32 +31,25 @@ void checkNetwork() {
 // ======== SETUP ========
 void setupNetwork() {
   
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
-  ledStatus.begin();
   prefs.begin(PREFS_NAMESPACE, false);
-
-  // Check if button is held to reset WiFi config
-//  if (digitalRead(BUTTON_PIN) == LOW) {
-//    Serial.println("Resetting WiFi credentials...");
-//    prefs.clear();
-//    prefs.end();
-//    delay(1000);
-//    ESP.restart();
-//  }
 
   String savedSSID = prefs.getString(SSID_KEY, "");
   String savedPASS = prefs.getString(PASS_KEY, "");
 
   if (savedSSID != "") {
+
+    wl_status_t status = WiFi.status();
+    if (status != WL_CONNECTED && status != WL_IDLE_STATUS && status != WL_SCAN_COMPLETED) {
+        WiFi.begin(savedSSID.c_str(), savedPASS.c_str());
+    }
+
+
+    Serial.print("Trying to connect to WiFi network ");
+    Serial.print(savedSSID.c_str());
+    Serial.println("...");
     
     ledStatus.setStationConnecting();
-    Serial.println("Trying saved WiFi credentials...");
-    Serial.println(savedSSID.c_str());
-    Serial.println(savedPASS.c_str());
-    WiFi.begin(savedSSID.c_str(), savedPASS.c_str());
-    
     unsigned long startAttempt = millis();
-
     while ((WiFi.status() != WL_CONNECTED || millis() - startAttempt < 3000) && millis() - startAttempt < 20000) {
       ledStatus.update();
     }
@@ -84,14 +75,17 @@ void setupNetwork() {
       return;
     }
 
+    Serial.println("Cannot connect to Wifi.");
     ledStatus.setErrorStationConnecting();
     startAttempt = millis();
     while(millis()-startAttempt < 4000){
       ledStatus.update();
     }
-
     ledStatus.off();
     ledStatus.update();
+
+    WiFi.disconnect();
+    
     prefs.end();
     return;
     

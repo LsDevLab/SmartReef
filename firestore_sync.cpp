@@ -17,7 +17,7 @@ using AsyncClient = AsyncClientClass;
 AsyncClient aClient(ssl_client);
 
 
-LegacyToken legacy_token(DATABASE_SECRET);
+UserAuth user_auth(API_KEY, USER_EMAIL, USER_PASSWORD, 3000 /* expire period in seconds (<3600) */);
 FirebaseApp app;
 
 Firestore::Documents Docs;
@@ -42,7 +42,7 @@ void initFirebase() {
 
 
     Serial.println("Initializing app...");
-  initializeApp(aClient, app, getAuth(legacy_token), processData, "🔐 authTask");
+  initializeApp(aClient, app, getAuth(user_auth), processData, "🔐 authTask");
 
     // Or intialize the app and wait.
     // initializeApp(aClient, app, getAuth(user_auth), 120 * 1000, auth_debug_print);
