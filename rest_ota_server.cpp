@@ -4,6 +4,7 @@
 #include "actuators.h"
 #include <ArduinoJson.h>
 #include <Preferences.h>
+#include "configuration.h"
 
 WebServer server(80);
 
@@ -27,9 +28,31 @@ void handleActuatorUpdate(bool &actuatorVar, uint8_t relayPin) {
   }
 
   actuatorVar = doc["value"];
-  digitalWrite(relayPin, actuatorVar ? HIGH : LOW);
+  digitalWrite(relayPin, actuatorVar ? LOW : HIGH);
+  tuyaSetSwitch(TUYA_DEVICE_ID_1, wavePump1Active);
+  tuyaSetSwitch(TUYA_DEVICE_ID_2, wavePump2Active);
+  tapoControl(TAPO_DEVICE_ID, lightActive);
 
   server.send(200, "application/json", "{\"message\":\"Actuator updated\"}");
+}
+
+void handleConfigUpdate(int &configVar) {
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"Missing body\"}");
+    return;
+  }
+
+  DynamicJsonDocument doc(128);
+  DeserializationError error = deserializeJson(doc, server.arg("plain"));
+
+  if (error || !doc.containsKey("value")) {
+    server.send(400, "application/json", "{\"error\":\"Invalid JSON or missing 'value'\"}");
+    return;
+  }
+
+  configVar = doc["value"];
+
+  server.send(200, "application/json", "{\"message\":\"Config updated\"}");
 }
 
 void setupRoutes() {
@@ -47,7 +70,6 @@ void setupRoutes() {
   server.on("/api/actuators", HTTP_GET, []() {
     DynamicJsonDocument doc(256);
     doc["refillPumpActive"] = refillPumpActive;
-    doc["skimmerActive"] = skimmerActive;
     doc["wavePump1Active"] = wavePump1Active;
     doc["wavePump2Active"] = wavePump2Active;
     doc["lightActive"] = lightActive;
@@ -59,9 +81,18 @@ void setupRoutes() {
   // GET /api/sensors
   server.on("/api/sensors", HTTP_GET, []() {
     DynamicJsonDocument doc(256);
-    doc["waterLevelCm"] = waterLevelCm;
+    doc["tankFilled"] = tankFilled;
     doc["temperatureC"] = tempC;
-    doc["lux"] = lux;
+    String response;
+    serializeJson(doc, response);
+    server.send(200, "application/json", response);
+  });
+  
+    // GET /api/config
+  server.on("/api/config", HTTP_GET, []() {
+    DynamicJsonDocument doc(256);
+    doc["lightOnHour"] = lightOnHour;
+    doc["lightOffHour"] = lightOffHour;
     String response;
     serializeJson(doc, response);
     server.send(200, "application/json", response);
@@ -70,11 +101,6 @@ void setupRoutes() {
   // POST /api/actuators/refillPumpActive
   server.on("/api/actuators/refillPump", HTTP_POST, []() {
     handleActuatorUpdate(refillPumpActive, RELAY_FILL_PUMP);
-  });
-  
-  // POST /api/actuators/skimmerActive
-  server.on("/api/actuators/skimmer", HTTP_POST, []() {
-    handleActuatorUpdate(skimmerActive, RELAY_SKIMMER);
   });
   
   // POST /api/actuators/wavePump1Active
@@ -91,6 +117,18 @@ void setupRoutes() {
   server.on("/api/actuators/light", HTTP_POST, []() {
     handleActuatorUpdate(lightActive, RELAY_LIGHT);
   });
+
+  
+  // POST /api/config/lightOnHour
+  server.on("/api/config/lightOnHour", HTTP_POST, []() {
+    handleConfigUpdate(lightOnHour);
+  });
+    
+  // POST /api/config/lightOffHour
+  server.on("/api/config/lightOffHour", HTTP_POST, []() {
+        handleConfigUpdate(lightOffHour);
+  });
+  
 
   // POST /api/restart
   server.on("/api/restart", HTTP_POST, []() {
@@ -112,7 +150,7 @@ void setupRoutes() {
 
   // ElegantOTA
   ElegantOTA.begin(&server);
-  ElegantOTA.setAuth("admin", "superpaguro");
+  ElegantOTA.setAuth(ELEGANT_OTA_USERNAME, ELEGANT_OTA_PASSWORD);
 
   server.onNotFound([]() {
     server.send(404, "text/plain", "Not found");

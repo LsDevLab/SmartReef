@@ -1,90 +1,75 @@
-// LEDStatusManager.cpp
 #include "led_status.h"
+#include "configuration.h"
 
-LEDStatus::LEDStatus() : strip(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800),
-  lastUpdate(0), brightness(0), fadingUp(true), state(STATION_CONNECTING) {}
+// Define blink intervals
+#define CONNECTING_BLINK_INTERVAL 500  // 500 ms for station connecting state
+#define ERROR_BLINK_INTERVAL 300      // 300 ms for error state
+
+LEDStatus::LEDStatus() : lastUpdate(0), state(STATION_CONNECTING), blinkInterval(CONNECTING_BLINK_INTERVAL) {}
 
 void LEDStatus::begin() {
-  strip.begin();
-  strip.show();
+  pinMode(LED_PIN, OUTPUT);  // Initialize the LED pin
+  digitalWrite(LED_PIN, LOW);  // Start with the LED off
 }
 
 void LEDStatus::setStationConnecting() {
-  brightness = 0;
   state = STATION_CONNECTING;
+  blinkInterval = CONNECTING_BLINK_INTERVAL;
 }
 
 void LEDStatus::setStationConnected() {
-  brightness = 0;
   state = STATION_CONNECTED;
+  digitalWrite(LED_PIN, HIGH);  // LED stays on for station connected state
 }
 
 void LEDStatus::setAPMode() {
-  brightness = 0;
   state = AP_MODE;
+  digitalWrite(LED_PIN, HIGH);  // LED stays on for AP mode
 }
 
 void LEDStatus::setErrorStationConnecting() {
-  brightness = 0;
   state = ERROR_STATION_CONNECTING;
+  blinkInterval = ERROR_BLINK_INTERVAL;
 }
 
-void LEDStatus::off(){
-  brightness = 0;
+void LEDStatus::off() {
   state = OFF;
+  digitalWrite(LED_PIN, LOW);  // Turn off the LED
 }
 
 void LEDStatus::setWaterRefilling() {
-  brightness = 0;
   state = WATER_REFILLING;
+  digitalWrite(LED_PIN, HIGH);  // LED stays on for water refilling state
 }
 
 void LEDStatus::setResetting() {
-  brightness = 0;
   state = RESETTING;
+  digitalWrite(LED_PIN, HIGH);  // LED stays on for resetting state
 }
 
-
 void LEDStatus::update() {
-  unsigned long now = millis();
-  if(state == OFF) {
-    showColor(0, 0, 0); 
-  } else if (state == STATION_CONNECTING && now - lastUpdate >= 30) {
-    brightness += fadingUp ? 10 : -10;
-    if (brightness >= 255) { brightness = 255; fadingUp = false; }
-    if (brightness <= 0)   { brightness = 0; fadingUp = true;  }
-    showColor(0, brightness/3*2, brightness); // water green pulse
-    lastUpdate = now;
-  } else if (state == STATION_CONNECTED && now - lastUpdate >= 25) {
-    brightness += fadingUp ? 10 : -10;
-    if (brightness >= 255) { brightness = 255; fadingUp = false; }
-    if (brightness <= 0)   { brightness = 0; fadingUp = true;  }
-    showColor(0, brightness, 0); // water green pulse
-    lastUpdate = now;
-  } else if (state == AP_MODE && now - lastUpdate >= 10) {
-    brightness += fadingUp ? 10 : -10;
-    if (brightness >= 255) { brightness = 255; fadingUp = false; }
-    if (brightness <= 0)   { brightness = 0; fadingUp = true;  }
-    showColor(brightness, brightness, 0); // yellow fade
-    lastUpdate = now;
-  } else if (state == ERROR_STATION_CONNECTING && now - lastUpdate >= 15) {
-    brightness += fadingUp ? 10 : -10;
-    if (brightness >= 255) { brightness = 255; fadingUp = false; }
-    if (brightness <= 0)   { brightness = 0; fadingUp = true;  }
-    showColor(brightness, 0, 0); // red fade
-    lastUpdate = now;
-  } else if (state == WATER_REFILLING) {
-    showColor(0, 0, 255); // blue 
-    lastUpdate = now;
-  } else if (state == RESETTING) {
-    showColor(180, 0, 255); // violet 
-    lastUpdate = now;
+  unsigned long now = millis();  // Get current time in milliseconds
+
+  switch (state) {
+    case OFF:
+      digitalWrite(LED_PIN, LOW);  // Turn off the LED
+      break;
+
+    case STATION_CONNECTING:
+    case ERROR_STATION_CONNECTING:
+      if (now - lastUpdate >= blinkInterval) {
+        digitalWrite(LED_PIN, !digitalRead(LED_PIN));  // Toggle the LED state
+        lastUpdate = now;
+      }
+      break;
+
+    case STATION_CONNECTED:
+    case AP_MODE:
+    case WATER_REFILLING:
+    case RESETTING:
+      digitalWrite(LED_PIN, HIGH);  // Keep LED on for these states
+      break;
   }
 }
 
-void LEDStatus::showColor(uint8_t r, uint8_t g, uint8_t b) {
-  strip.setPixelColor(0, strip.Color(r, g, b));
-  strip.show();
-}
-
-LEDStatus ledStatus;
+LEDStatus ledStatus;  // Declare the global LEDStatus object

@@ -1,43 +1,52 @@
 #include "ntp_time.h"
 #include <time.h>
-#include <Wifi.h>
+#include <WiFi.h>
+#include "configuration.h"
 
+// NTP sync configuration
 static const char* ntpServer;
 static const char* tzEnv;
-
 static unsigned long lastNtpSync = 0;
-static const unsigned long syncInterval = 3600UL * 1000UL; // 1 hour in ms
-
 
 void initTime(const char* tz, const char* server) {
   tzEnv = tz;
   ntpServer = server;
+
   setenv("TZ", tzEnv, 1);  // Set timezone
   tzset();                 // Apply timezone
+
+  Serial.println("Initialized time configuration with NTP.");
 }
 
 void syncTimeIfNeeded() {
-   if (WiFi.status() != WL_CONNECTED)
+  if (WiFi.status() != WL_CONNECTED)
     return;
-  
+
   unsigned long now = millis();
-  if (now - lastNtpSync >= syncInterval || lastNtpSync == 0) {
+  if (now - lastNtpSync >= NTP_SYNC_INTERVAL || lastNtpSync == 0) {
     Serial.println("Syncing time from NTP...");
     configTzTime(tzEnv, ntpServer);
+    delay(5000); // Give time for sync
+
+    struct tm timeinfo;
+    if (getLocalTime(&timeinfo)) {
+      Serial.print("NTP time: ");
+      Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
+    } else {
+      Serial.println("Failed to obtain time from NTP");
+    }
+
     lastNtpSync = millis();
-    delay(5000); // Wait for sync
-    printLocalTime();
   }
 }
 
 void printLocalTime() {
-  if (WiFi.status() != WL_CONNECTED)
-    return;
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
-    Serial.println("Failed to obtain time");
+    Serial.println("Failed to obtain local time");
     return;
   }
+
   Serial.print("Current time: ");
   Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
 }

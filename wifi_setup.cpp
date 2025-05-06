@@ -4,13 +4,10 @@
 #include "led_status.h"
 #include "wifi_setup.h"
 #include "rest_ota_server.h"
+#include "configuration.h"
 
 Preferences prefs;
 WebServer configServer(80);
-
-const char* PREFS_NAMESPACE = "wifiConfig";
-const char* SSID_KEY = "ssid";
-const char* PASS_KEY = "pass";
 
 bool shouldSaveConfig = false;
 
@@ -31,7 +28,7 @@ void checkNetwork() {
 // ======== SETUP ========
 void setupNetwork() {
   
-  prefs.begin(PREFS_NAMESPACE, false);
+  prefs.begin(WIFI_PREFS_NAMESPACE, false);
 
   String savedSSID = prefs.getString(SSID_KEY, "");
   String savedPASS = prefs.getString(PASS_KEY, "");
@@ -101,10 +98,29 @@ void setupNetwork() {
 // ======== AP MODE SETUP ========
 void startAPMode() {
 
-  ledStatus.setAPMode();
+    Serial.println("Entering startAPMode()...");
+
+  //ledStatus.setAPMode();  // Could be crashing here!
+  Serial.println("ledStatus.setAPMode() done.");
+
+  WiFi.disconnect(true);
+  Serial.println("WiFi.disconnect() done.");
+
+  WiFi.mode(WIFI_OFF);
+  Serial.println("WiFi.mode(WIFI_OFF) done.");
+
+  delay(100);
+  Serial.println("Delay after WiFi.mode(WIFI_OFF) complete.");
 
   WiFi.mode(WIFI_AP);
-  WiFi.softAP("SmartReefAP", "nemoedory");
+  Serial.println("WiFi.mode(WIFI_AP) done.");
+
+  bool apStarted = WiFi.softAP(CONFIG_AP_SSID, CONFIG_AP_PASSWORD);
+  if (!apStarted) {
+    Serial.println("WiFi.softAP() failed!");
+    return;
+  }
+  Serial.println("WiFi.softAP() success.");
 
   IPAddress IP = WiFi.softAPIP();
   Serial.print("AP IP address: ");
@@ -187,7 +203,7 @@ configServer.on("/", HTTP_GET, []() {
     String ssid = configServer.arg("ssid");
     String pass = configServer.arg("pass");
 
-    prefs.begin(PREFS_NAMESPACE, false);
+    prefs.begin(WIFI_PREFS_NAMESPACE, false);
     prefs.putString(SSID_KEY, ssid);
     prefs.putString(PASS_KEY, pass);
     prefs.end();
@@ -256,8 +272,10 @@ configServer.on("/", HTTP_GET, []() {
   configServer.begin();
 
   while(true) {
+    Serial.println(WiFi.status());
     ledStatus.update();       // Fast blink for AP mode
     configServer.handleClient();
+    delay(10);
   }
   
 }

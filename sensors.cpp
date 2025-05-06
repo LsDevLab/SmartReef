@@ -1,41 +1,22 @@
 #include "sensors.h"
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include "configuration.h"
 
-Adafruit_VL53L0X waterLevelSensor = Adafruit_VL53L0X();
-OneWire oneWire(ONE_WIRE_BUS);
+OneWire oneWire(WATER_TEMP_SENSOR_PIN);
 DallasTemperature temperatureSensor(&oneWire);
 
-float waterLevelCm = -1;
 float tempC = -127;
-float lux = 0;
+bool tankFilled = false;
 
 void setupSensors() {
-  if (!waterLevelSensor.begin()) {
-    Serial.println(F("Failed to boot VL53L0X"));
-    while (1);
-  }
+  pinMode(WATER_LEVEL_SENSOR_PIN, INPUT_PULLUP);  // Set digital water level sensor pin
   temperatureSensor.begin();
-  pinMode(LIGHTSENSORPIN, INPUT);
 }
 
 void readAllSensors() {
-
-  readWaterLevel();
-
   readTemp();
-
-  readLux();
-  
-}
-
-void readWaterLevel() {
-  VL53L0X_RangingMeasurementData_t measure;
-  waterLevelSensor.rangingTest(&measure, false);
-  if (measure.RangeStatus != 4) {
-    float distanceToWater = measure.RangeMilliMeter / 10.0;
-    waterLevelCm = 45.0 - distanceToWater;
-  } else {
-    waterLevelCm = -1;
-  }
+  readTankFilledSensor();
 }
 
 void readTemp() {
@@ -43,10 +24,6 @@ void readTemp() {
   tempC = temperatureSensor.getTempCByIndex(0);
 }
 
-void readLux() {
-  int lightReading = analogRead(LIGHTSENSORPIN);
-  float volts = lightReading * 5.0 / 1024.0;
-  float amps = volts / 10000.0;
-  float microamps = amps * 1000000;
-  lux = microamps * 2.0;
+void readTankFilledSensor() {
+  tankFilled = digitalRead(WATER_LEVEL_SENSOR_PIN) == HIGH;
 }

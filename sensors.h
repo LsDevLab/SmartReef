@@ -1,24 +1,10 @@
-#ifndef SENSORS_H
-#define SENSORS_H
+#pragma once
+#include <DallasTemperature.h> 
 
-#include "Adafruit_VL53L0X.h"
-#include <OneWire.h>
-#include <DallasTemperature.h>
-
-#define ONE_WIRE_BUS 2
-#define LIGHTSENSORPIN A1
-
-extern Adafruit_VL53L0X waterLevelSensor;
-extern OneWire oneWire;
-extern DallasTemperature temperatureSensor;
-extern float waterLevelCm, tempC, lux;
+extern float tempC;
+extern bool tankFilled;
 
 void setupSensors();
-
-void readWaterLevel();
-void readTemp();
-void readLux();
-
 void readAllSensors();
-
-#endif
+void readTemp();
+void readTankFilledSensor();

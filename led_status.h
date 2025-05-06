@@ -1,35 +1,42 @@
-// LEDStatusManager.h
-#pragma once
-#include <Adafruit_NeoPixel.h>
+// led_status.h
+#ifndef LED_STATUS_H
+#define LED_STATUS_H
 
-#define LED_PIN 48
-#define NUM_LEDS 1
+#include <Arduino.h>
+
+
+// Define possible states for the LED
+enum LEDState {
+  OFF,
+  STATION_CONNECTING,
+  STATION_CONNECTED,
+  AP_MODE,
+  ERROR_STATION_CONNECTING,
+  WATER_REFILLING,
+  RESETTING
+};
 
 class LEDStatus {
 public:
-  LEDStatus();
-  void begin();
-  void update();
-
-  void off();
-  void setStationConnecting(); 
-  void setStationConnected();  
-  void setAPMode();     
-  void setWaterRefilling();    
-  void setResetting();        
-       
-
-  // errors
-  void setErrorStationConnecting();  
-
+  LEDStatus();  // Constructor
+  
+  void begin();  // Initialize the LED
+  void setStationConnecting();  // Set LED to Station Connecting state
+  void setStationConnected();  // Set LED to Station Connected state
+  void setAPMode();  // Set LED to AP Mode state
+  void setErrorStationConnecting();  // Set LED to Error Station Connecting state
+  void off();  // Turn off the LED
+  void setWaterRefilling();  // Set LED to Water Refilling state
+  void setResetting();  // Set LED to Resetting state
+  void update();  // Update the LED state
+  
 private:
-  enum State { STATION_CONNECTING, STATION_CONNECTED, AP_MODE, ERROR_STATION_CONNECTING, OFF, WATER_REFILLING, RESETTING } state;
-  Adafruit_NeoPixel strip;
-  unsigned long lastUpdate;
-  int brightness;
-  bool fadingUp;
-
-  void showColor(uint8_t r, uint8_t g, uint8_t b);
+  void blinkLED(unsigned long interval);  // Blink the LED at a specific interval
+  unsigned long lastUpdate;  // Last time the LED state was updated
+  unsigned long blinkInterval;  // Interval for LED blinking (milliseconds)
+  LEDState state;  // Current state of the LED
 };
 
-extern LEDStatus ledStatus;
+extern LEDStatus ledStatus;  // Declare the global LEDStatus object
+
+#endif  // LED_STATUS_H

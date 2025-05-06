@@ -7,8 +7,9 @@
 #include "firestore_sync.h"
 #include "reset_task.h"
 #include <ElegantOTA.h>
+#include "configuration.h"
+//#include "rc522_rfid.h" 
 
-#define CYCLE_TIME    60000     
 
 void setup() {
   Serial.begin(115200);
@@ -18,7 +19,9 @@ void setup() {
   
   ledStatus.begin();
 
-  startResetButtonTask((gpio_num_t)17, 5000);
+  setupResetButton();
+
+  //initRFID();
   
   setupNetwork(); 
 
@@ -27,7 +30,7 @@ void setup() {
 
   initFirebase();
   
- //setupSensors();
+   setupSensors();
  
   setupActuators();
   
@@ -35,7 +38,7 @@ void setup() {
 
 void loop() {
 
-    //readAllSensors();
+    readAllSensors();
 
     controlActuators();
 

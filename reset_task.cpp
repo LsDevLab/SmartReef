@@ -1,64 +1,50 @@
-#include "reset_task.h"
 #include "led_status.h"
+#include "reset_task.h"
 #include <Preferences.h>
+#include "configuration.h"
 
 static gpio_num_t resetPin;
-static uint32_t holdTime;
-TaskHandle_t resetTaskHandle;
+static uint32_t holdTime = RESET_PIN_HOLD_TIME;
+static unsigned long pressStart = 0;
+static bool buttonPressed = false;
 
-void resetButtonTask(void *parameter) {
-    pinMode(resetPin, INPUT_PULLUP);
-
-    bool wasPressed = false;
-    unsigned long pressStart = 0;
-
-    while (true) {
-        bool pressed = digitalRead(resetPin) == LOW;
-
-        if (pressed && !wasPressed) {
-            pressStart = millis();
-            wasPressed = true;
+void IRAM_ATTR resetButtonInterrupt() {
+    if (digitalRead(resetPin) == LOW) {  // Button is pressed
+        if (!buttonPressed) {
+            pressStart = millis();  // Record the start time of the button press
+            buttonPressed = true;
         }
+    } else {  // Button is released
+        if (buttonPressed) {
+            unsigned long pressDuration = millis() - pressStart;
+            if (pressDuration >= holdTime) {
+                // Button was held long enough to trigger reset
+                Serial.println("Button held — resetting preferences and restarting...");
+                ledStatus.setResetting();
+//                unsigned long startAttempt = millis();
+//                while (millis() - startAttempt < 1000) {
+//                    ledStatus.update();
+//                }
+//                ledStatus.off();
+                ledStatus.update();
 
-        if (!pressed && wasPressed) {
-            wasPressed = false;
-        }
+                Preferences prefs;
+                prefs.begin("wifiConfig", false);
+                prefs.clear();
+                prefs.end();
 
-        if (pressed && (millis() - pressStart >= holdTime)) {
-            Serial.println("Button held — resetting preferences and restarting...");
-
-            unsigned long startAttempt = millis();
-            ledStatus.setResetting();
-            while(millis()-startAttempt < 1000){
-              ledStatus.update();
+                delay(100);
+                ESP.restart();  // Restart the ESP32 after resetting preferences
             }
-            ledStatus.off();
-            ledStatus.update();
-
-            Preferences prefs;
-            prefs.begin("wifiConfig", false); // replace with your actual namespace
-            prefs.clear();
-            prefs.end();
-
-            delay(100);
-            ESP.restart();
+            buttonPressed = false;  // Reset the button state
         }
-
-        vTaskDelay(50 / portTICK_PERIOD_MS);  // Polling delay
     }
 }
 
-void startResetButtonTask(gpio_num_t pin, uint32_t holdTimeMs) {
-    resetPin = pin;
-    holdTime = holdTimeMs;
+void setupResetButton() {
+    resetPin = (gpio_num_t)RESET_PIN;  // Set the reset pin
+    pinMode(resetPin, INPUT_PULLUP);   // Set the reset pin as input with pull-up resistor
 
-    xTaskCreatePinnedToCore(
-        resetButtonTask,      // Task function
-        "ResetButtonTask",    // Task name
-        2048,                 // Stack size
-        NULL,                 // Params
-        1,                    // Priority
-        &resetTaskHandle,     // Task handle
-        1                     // Core
-    );
+    // Attach an interrupt to the reset pin: trigger on both rising and falling edges
+    attachInterrupt(digitalPinToInterrupt(resetPin), resetButtonInterrupt, CHANGE);
 }

@@ -1,16 +1,9 @@
-#ifndef RESET_BUTTON_H
-#define RESET_BUTTON_H
+#ifndef RESET_TASK_H
+#define RESET_TASK_H
 
 #include <Arduino.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
-void startResetButtonTask(gpio_num_t pin, uint32_t holdTimeMs = 3000);
+extern void setupResetButton();
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif // RESET_BUTTON_H
+#endif // RESET_TASK_H
