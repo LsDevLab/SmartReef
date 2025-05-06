@@ -35,6 +35,6 @@ extern const char* TAPO_DEVICE_ID;
 
 // control functions
 void tuyaSetSwitch(const char* deviceId, bool on);
-void tapoControl(const char* deviceId, bool on);
+void tapoControl(const char* deviceIP, bool on);
 
 #endif // ACTUATORS_H

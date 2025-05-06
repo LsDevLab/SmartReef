@@ -29,9 +29,9 @@ void handleActuatorUpdate(bool &actuatorVar, uint8_t relayPin) {
 
   actuatorVar = doc["value"];
   digitalWrite(relayPin, actuatorVar ? LOW : HIGH);
-  tuyaSetSwitch(TUYA_DEVICE_ID_1, wavePump1Active);
-  tuyaSetSwitch(TUYA_DEVICE_ID_2, wavePump2Active);
-  tapoControl(TAPO_DEVICE_ID, lightActive);
+  //tuyaSetSwitch(TUYA_DEVICE_ID_1, wavePump1Active);
+  //tuyaSetSwitch(TUYA_DEVICE_ID_2, wavePump2Active);
+  tapoControl(TAPO_DEVICE_IP, lightActive);
 
   server.send(200, "application/json", "{\"message\":\"Actuator updated\"}");
 }

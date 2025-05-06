@@ -6,6 +6,8 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include "configuration.h"
+#define TAPO_DEBUG_MODE // Comment this line to disable debug messages
+#include "tapo_device.h"
 
 static String tuyaToken;
 static unsigned long tuyaTokenExpires = 0;
@@ -20,6 +22,9 @@ bool refillPumpActive = false;
 // light schedule
 int lightOnHour  = 17;
 int lightOffHour = 24;
+
+TapoDevice tapo;
+
 
 void setupActuators() {
   pinMode(RELAY_FILL_PUMP, OUTPUT);
@@ -51,9 +56,9 @@ void setControlVariables() {
   lightActive = (timeinfo.tm_hour >= lightOnHour && timeinfo.tm_hour < lightOffHour);
 
   // ** now call cloud‑APIs **
-  tuyaSetSwitch(TUYA_DEVICE_ID_1, wavePump1Active);
-  tuyaSetSwitch(TUYA_DEVICE_ID_2, wavePump2Active);
-  tapoControl(TAPO_DEVICE_ID, lightActive);
+  //tuyaSetSwitch(TUYA_DEVICE_ID_1, wavePump1Active);
+  //tuyaSetSwitch(TUYA_DEVICE_ID_2, wavePump2Active);
+  tapoControl(TAPO_DEVICE_IP, lightActive);
 }
 
 void refillTankSubcontrol() {
@@ -136,37 +141,12 @@ void tuyaSetSwitch(const char* deviceId, bool on) {
   http.end();
 }
 
-// ——— Tapo helpers ———
-// (use Cloudlogin/passthrough per reverse‑engineered API)
-void tapoLogin() {
-  HTTPClient http;
-  http.begin("https://eu-wap.tplinkcloud.com");
-  http.addHeader("Content-Type","application/json");
-  DynamicJsonDocument j(256);
-  j["method"] = "login";
-  j["params"]["username"] = TAPO_USERNAME;
-  j["params"]["password"] = TAPO_PASSWORD;
-  String b; serializeJson(j,b);
-  int code = http.POST(b);
-  if(code==200){
-    DynamicJsonDocument r(256);
-    deserializeJson(r,http.getString());
-    tapoToken = r["result"]["token"].as<String>();
-  }
-  http.end();
-}
 
-void tapoControl(const char* deviceId, bool on) {
-  if (tapoToken=="") tapoLogin();
-  HTTPClient http;
-  http.begin("https://eu-wap.tplinkcloud.com");
-  http.addHeader("Content-Type","application/json");
-  http.addHeader("Authorization", tapoToken);
-  DynamicJsonDocument j(256);
-  j["method"] = "passthrough";
-  j["params"]["deviceId"] = deviceId;
-  j["params"]["requestData"] = String("{\"system\":{\"set_relay_state\":{\"state\":") + (on?1:0) + "}}";
-  String b; serializeJson(j,b);
-  http.POST(b);
-  http.end();
+void tapoControl(const char* deviceIP, bool on) {
+  tapo.begin(deviceIP, TAPO_USERNAME, TAPO_PASSWORD);
+  if(on){
+    tapo.on();
+  } else {
+    tapo.off();
+  }
 }
