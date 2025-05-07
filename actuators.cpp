@@ -44,6 +44,7 @@ void setControlVariables() {
   if (WiFi.status() != WL_CONNECTED || !getLocalTime(&timeinfo)) {
     Serial.println("No internet or time, turning on lights, and wavepump1");
     wavePump1Active = true;
+    wavePump2Active = false;
     lightActive = true;
     //tuyaSetSwitch(TUYA_WAVEPUMP1_ID, wavePump1Active);
     setLightValue(lightActive);
@@ -64,48 +65,33 @@ void setControlVariables() {
 }
 
 void refillTankSubcontrol() {
-  static unsigned long pumpStart = 0;
-  unsigned long now = millis();
+  unsigned long pumpStart = millis();
+  bool timeout = false;
 
-  if (!tankFilled) {
-    // If pump just turned on, record the start time
-    if (!refillPumpActive) {
-      pumpStart = now;
-      refillPumpActive = true;
-      Serial.println("Refill Pump: ON");
-      uploadRefillWaterStatusToFirestore();
-    }
-
+  readTankFilledSensor();
+  while (!timeout && !tankFilled) {
+    refillPumpActive = true;
+    Serial.print("Refill Pump: ON .");
     // Keep pump on for up to 10 seconds
-    if (now - pumpStart <= 10000) {
+    if (millis()- pumpStart <= 10000) {
       digitalWrite(RELAY_FILL_PUMP, LOW);  // relay active low
       ledStatus.setWaterRefilling();
       ledStatus.update();
+      Serial.print(".");
+      delay(1000);
     } else {
-      // Timeout: turn pump off
-      digitalWrite(RELAY_FILL_PUMP, HIGH);
-      refillPumpActive = false;
-      Serial.println("Refill Pump: OFF (timeout)");
-      uploadRefillWaterStatusToFirestore();
+      ledStatus.off();
+      ledStatus.update();
+      Serial.println("Refill Pump TIMEOUT");
+      timeout = true;
     }
-  } else {
-    // Tank filled: ensure pump is off and reset flag
-    digitalWrite(RELAY_FILL_PUMP, HIGH);
-    if (refillPumpActive) {
-      refillPumpActive = false;
-      Serial.println("Refill Pump: OFF (tank filled)");
-      uploadRefillWaterStatusToFirestore();
-    }
+    readTankFilledSensor();
+    //uploadRefillWaterStatusToFirestore(); too slow
   }
+  digitalWrite(RELAY_FILL_PUMP, HIGH);
+  refillPumpActive = false;
+  Serial.println("Refill Pump: OFF (tank filled)");
 }
-
-// ——— Tuya helpers ———
-static String makeSign(const String& clientId, uint64_t tstamp) {
-  // … implement HMAC‑SHA256 of (clientId + tstamp) with TUYA_CLIENT_SECRET …
-  return String(); 
-}
-
-
 
 void setLightValue(bool on) {
   if(on){
