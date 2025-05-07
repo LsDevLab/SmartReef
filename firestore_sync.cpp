@@ -24,6 +24,7 @@ void initFirebase() {
   Firebase.printf("Firebase Client v%s\n", FIREBASE_CLIENT_VERSION);
   initializeApp(aClient, app, getAuth(user_auth), processData, "🔐 authTask");
   app.getApp<Firestore::Documents>(Docs);
+  delay(1000);
 }
 
 String getTimestampString() {

@@ -7,6 +7,5 @@
 extern WebServer server;
 
 void startRestOtaServer();
-void handleConfigUpdate();
 
 #endif // REST_OTA_SERVER_H

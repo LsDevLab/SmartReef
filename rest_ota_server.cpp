@@ -11,12 +11,10 @@ WebServer server(80);
 // Forward declaration of the task
 void webServerTask(void *parameter);
 
-
-// Helper function to handle actuator update
-void handleActuatorUpdate(bool &actuatorVar, uint8_t relayPin) {
+int getDocValue(){
   if (!server.hasArg("plain")) {
     server.send(400, "application/json", "{\"error\":\"Missing body\"}");
-    return;
+    return -1;
   }
 
   DynamicJsonDocument doc(128);
@@ -24,33 +22,59 @@ void handleActuatorUpdate(bool &actuatorVar, uint8_t relayPin) {
 
   if (error || !doc.containsKey("value")) {
     server.send(400, "application/json", "{\"error\":\"Invalid JSON or missing 'value'\"}");
-    return;
+    return -1;
   }
 
-  actuatorVar = doc["value"];
+  return doc["value"];
+}
+
+
+// Helper function to handle actuator update
+void handleActuatorUpdate(bool &actuatorVar, uint8_t relayPin) {
+  int docValue = getDocValue();
+  if(docValue == -1) return;
+
+  actuatorVar = docValue;
   digitalWrite(relayPin, actuatorVar ? LOW : HIGH);
-  //tuyaSetSwitch(TUYA_DEVICE_ID_1, wavePump1Active);
-  //tuyaSetSwitch(TUYA_DEVICE_ID_2, wavePump2Active);
-  tapoControl(TAPO_DEVICE_IP, lightActive);
+
+  server.send(200, "application/json", "{\"message\":\"Actuator updated\"}");
+}
+
+void handleTapoLightUpdate() {
+  int docValue = getDocValue();
+  if(docValue == -1) return;
+
+  lightActive = docValue;
+  setLightValue(lightActive);
+
+  server.send(200, "application/json", "{\"message\":\"Actuator updated\"}");
+}
+
+void handleTuyaWavePump1Update() {
+  int docValue = getDocValue();
+  if(docValue == -1) return;
+
+  wavePump1Active = docValue;
+  setWavepump1Value(wavePump1Active);
+
+  server.send(200, "application/json", "{\"message\":\"Actuator updated\"}");
+}
+
+void handleTuyaWavePump2Update() {
+  int docValue = getDocValue();
+  if(docValue == -1) return;
+
+  wavePump2Active = docValue;
+  setWavepump1Value(wavePump2Active);
 
   server.send(200, "application/json", "{\"message\":\"Actuator updated\"}");
 }
 
 void handleConfigUpdate(int &configVar) {
-  if (!server.hasArg("plain")) {
-    server.send(400, "application/json", "{\"error\":\"Missing body\"}");
-    return;
-  }
-
-  DynamicJsonDocument doc(128);
-  DeserializationError error = deserializeJson(doc, server.arg("plain"));
-
-  if (error || !doc.containsKey("value")) {
-    server.send(400, "application/json", "{\"error\":\"Invalid JSON or missing 'value'\"}");
-    return;
-  }
-
-  configVar = doc["value"];
+  int docValue = getDocValue();
+  if(docValue == -1) return;
+  
+  configVar = docValue;
 
   server.send(200, "application/json", "{\"message\":\"Config updated\"}");
 }
@@ -68,6 +92,9 @@ void setupRoutes() {
 
  // GET /api/actuators
   server.on("/api/actuators", HTTP_GET, []() {
+    lightActive = getLightValue();
+    wavePump1Active = getWavepump1Value();
+    wavePump2Active = getWavepump2Value();
     DynamicJsonDocument doc(256);
     doc["refillPumpActive"] = refillPumpActive;
     doc["wavePump1Active"] = wavePump1Active;
@@ -105,17 +132,17 @@ void setupRoutes() {
   
   // POST /api/actuators/wavePump1Active
   server.on("/api/actuators/wavePump1", HTTP_POST, []() {
-    handleActuatorUpdate(wavePump1Active, RELAY_PUMP1);
+    handleTuyaWavePump1Update();
   });
   
   // POST /api/actuators/wavePump2Active
   server.on("/api/actuators/wavePump2", HTTP_POST, []() {
-    handleActuatorUpdate(wavePump2Active, RELAY_PUMP2);
+    handleTuyaWavePump2Update();
   });
   
   // POST /api/actuators/lightActive
   server.on("/api/actuators/light", HTTP_POST, []() {
-    handleActuatorUpdate(lightActive, RELAY_LIGHT);
+    handleTapoLightUpdate();
   });
 
   
@@ -126,7 +153,7 @@ void setupRoutes() {
     
   // POST /api/config/lightOffHour
   server.on("/api/config/lightOffHour", HTTP_POST, []() {
-        handleConfigUpdate(lightOffHour);
+     handleConfigUpdate(lightOffHour);
   });
   
 

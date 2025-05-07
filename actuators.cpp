@@ -3,15 +3,11 @@
 #include "led_status.h"
 #include "firestore_sync.h"
 #include <WiFi.h>
-#include <HTTPClient.h>
-#include <ArduinoJson.h>
 #include "configuration.h"
 #define TAPO_DEBUG_MODE // Comment this line to disable debug messages
 #include "tapo_device.h"
+#include "tuya_device.h"
 
-static String tuyaToken;
-static unsigned long tuyaTokenExpires = 0;
-static String tapoToken;
 
 // your existing flags
 bool wavePump1Active = true;
@@ -23,12 +19,15 @@ bool refillPumpActive = false;
 int lightOnHour  = 17;
 int lightOffHour = 24;
 
-TapoDevice tapo;
-
+TapoDevice tapoLight;
 
 void setupActuators() {
   pinMode(RELAY_FILL_PUMP, OUTPUT);
   digitalWrite(RELAY_FILL_PUMP, !refillPumpActive);
+  tapoLight.begin(TAPO_LIGHT_IP, TAPO_USERNAME, TAPO_PASSWORD);
+  lightActive = getLightValue();
+  wavePump1Active = getWavepump1Value();
+  wavePump2Active = getWavepump2Value();
   Serial.println("Refill pump control initialized.");
   delay(2000);
 }
@@ -40,11 +39,14 @@ void controlActuators() {
 }
 
 void setControlVariables() {
-  if (WiFi.status() != WL_CONNECTED) return;
 
   struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) {
-    Serial.println("Time not available");
+  if (WiFi.status() != WL_CONNECTED || !getLocalTime(&timeinfo)) {
+    Serial.println("No internet or time, turning on lights, and wavepump1");
+    wavePump1Active = true;
+    lightActive = true;
+    //tuyaSetSwitch(TUYA_WAVEPUMP1_ID, wavePump1Active);
+    setLightValue(lightActive);
     return;
   }
 
@@ -56,9 +58,9 @@ void setControlVariables() {
   lightActive = (timeinfo.tm_hour >= lightOnHour && timeinfo.tm_hour < lightOffHour);
 
   // ** now call cloud‑APIs **
-  //tuyaSetSwitch(TUYA_DEVICE_ID_1, wavePump1Active);
-  //tuyaSetSwitch(TUYA_DEVICE_ID_2, wavePump2Active);
-  tapoControl(TAPO_DEVICE_IP, lightActive);
+  setLightValue(lightActive);
+  setWavepump1Value(wavePump1Active);
+  setWavepump2Value(wavePump2Active);
 }
 
 void refillTankSubcontrol() {
@@ -103,50 +105,32 @@ static String makeSign(const String& clientId, uint64_t tstamp) {
   return String(); 
 }
 
-void tuyaAuthenticate() {
-  uint64_t tstamp = millis();
-  HTTPClient http;
-  http.begin("https://openapi.tuyacn.com/v1.0/token?grant_type=1");
-  http.addHeader("client_id", TUYA_CLIENT_ID);
-  http.addHeader("sign_method","HMAC-SHA256");
-  http.addHeader("sign", makeSign(TUYA_CLIENT_ID, tstamp));
-  int code = http.POST("");
-  if (code==200) {
-    DynamicJsonDocument doc(512);
-    deserializeJson(doc, http.getString());
-    tuyaToken = doc["result"]["access_token"].as<String>();
-    tuyaTokenExpires = millis() + doc["result"]["expire_time"].as<uint32_t>()*1000;
-  }
-  http.end();
-}
-
-void tuyaSetSwitch(const char* deviceId, bool on) {
-  if (millis() > tuyaTokenExpires) tuyaAuthenticate();
-
-  HTTPClient http;
-  String url = String("https://openapi.tuyacn.com/v1.0/devices/") + deviceId + "/commands";
-  http.begin(url);
-  http.addHeader("Authorization", tuyaToken);
-  http.addHeader("Content-Type","application/json");
-
-  DynamicJsonDocument cmd(128);
-  JsonArray arr = cmd.createNestedArray("commands");
-  JsonObject o = arr.createNestedObject();
-  o["code"]  = "switch_1";
-  o["value"] = on;
-
-  String body;
-  serializeJson(cmd, body);
-  http.POST(body);
-  http.end();
-}
 
 
-void tapoControl(const char* deviceIP, bool on) {
-  tapo.begin(deviceIP, TAPO_USERNAME, TAPO_PASSWORD);
+void setLightValue(bool on) {
   if(on){
-    tapo.on();
+    tapoLight.on();
   } else {
-    tapo.off();
+    tapoLight.off();
   }
+}
+
+bool getLightValue(){
+    return tapoLight.getDeviceOn();
+}
+
+void setWavepump1Value(bool on){
+  tuyaSetSwitch(TUYA_WAVEPUMP1_ID, wavePump1Active);
+}
+
+bool getWavepump1Value(){
+    return tuyaGetSwitch(TUYA_WAVEPUMP1_ID);
+}
+
+void setWavepump2Value(bool on){
+  tuyaSetSwitch(TUYA_WAVEPUMP2_ID, wavePump2Active);
+}
+
+bool getWavepump2Value(){
+   return tuyaGetSwitch(TUYA_WAVEPUMP2_ID);
 }

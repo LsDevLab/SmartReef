@@ -8,7 +8,6 @@
 #include "reset_task.h"
 #include <ElegantOTA.h>
 #include "configuration.h"
-//#include "rc522_rfid.h" 
 
 
 void setup() {
@@ -20,8 +19,6 @@ void setup() {
   ledStatus.begin();
 
   setupResetButton();
-
-  //initRFID();
   
   setupNetwork(); 
 
@@ -30,7 +27,7 @@ void setup() {
 
   initFirebase();
   
-   setupSensors();
+  setupSensors();
  
   setupActuators();
   

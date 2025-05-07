@@ -3,12 +3,6 @@
 
 #include <Arduino.h>
 
-// --- Relay Pins ---
-#define RELAY_PUMP1        25
-#define RELAY_PUMP2        26
-#define RELAY_LIGHT        27
-#define RELAY_FILL_PUMP    33
-
 extern bool refillPumpActive;
 extern bool wavePump1Active;
 extern bool wavePump2Active;
@@ -22,19 +16,12 @@ void controlActuators();
 void setControlVariables();
 void refillTankSubcontrol();
 
-// Tuya credentials & device IDs
-extern const char* TUYA_CLIENT_ID;
-extern const char* TUYA_CLIENT_SECRET;
-extern const char* TUYA_DEVICE_ID_1;
-extern const char* TUYA_DEVICE_ID_2;
-
-// Tapo credentials & device ID
-extern const char* TAPO_USERNAME;
-extern const char* TAPO_PASSWORD;
-extern const char* TAPO_DEVICE_ID;
-
 // control functions
-void tuyaSetSwitch(const char* deviceId, bool on);
-void tapoControl(const char* deviceIP, bool on);
+void setLightValue(bool on);
+bool getLightValue();
+void setWavepump1Value(bool on);
+bool getWavepump1Value();
+void setWavepump2Value(bool on);
+bool getWavepump2Value();
 
 #endif // ACTUATORS_H
