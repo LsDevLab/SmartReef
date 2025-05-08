@@ -2,6 +2,7 @@
 #include <time.h>
 #include <WiFi.h>
 #include "configuration.h"
+#include "webserial_logging.h"
 
 // NTP sync configuration
 static const char* ntpServer;
@@ -15,7 +16,7 @@ void initTime(const char* tz, const char* server) {
   setenv("TZ", tzEnv, 1);  // Set timezone
   tzset();                 // Apply timezone
 
-  Serial.println("Initialized time configuration with NTP.");
+  logPrintln("Initialized time configuration with NTP.");
 }
 
 void syncTimeIfNeeded() {
@@ -24,16 +25,22 @@ void syncTimeIfNeeded() {
 
   unsigned long now = millis();
   if (now - lastNtpSync >= NTP_SYNC_INTERVAL || lastNtpSync == 0) {
-    Serial.println("Syncing time from NTP...");
+    logPrintln("Syncing time from NTP...");
     configTzTime(tzEnv, ntpServer);
     delay(5000); // Give time for sync
 
     struct tm timeinfo;
     if (getLocalTime(&timeinfo)) {
-      Serial.print("NTP time: ");
-      Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
+      char timeBuffer[64];  // Adjust the size if needed
+    
+    // Format the time using strftime
+    strftime(timeBuffer, sizeof(timeBuffer), "%A, %B %d %Y %H:%M:%S", &timeinfo);
+    
+    // Log the formatted time string
+    logPrint("NTP time: ");
+    logPrintln(timeBuffer);  // Using logPrintln to print with a newline
     } else {
-      Serial.println("Failed to obtain time from NTP");
+      logPrintln("Failed to obtain time from NTP");
     }
 
     lastNtpSync = millis();
@@ -43,10 +50,16 @@ void syncTimeIfNeeded() {
 void printLocalTime() {
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
-    Serial.println("Failed to obtain local time");
+    logPrintln("Failed to obtain local time");
     return;
   }
 
-  Serial.print("Current time: ");
-  Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
+  logPrint("Current time: ");
+      char timeBuffer[64];  // Adjust the size if needed
+    
+    // Format the time using strftime
+    strftime(timeBuffer, sizeof(timeBuffer), "%A, %B %d %Y %H:%M:%S", &timeinfo);
+    
+    // Log the formatted time string
+    logPrintln(timeBuffer);  // Using logPrintln to print with a newline
 }

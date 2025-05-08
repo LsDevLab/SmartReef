@@ -1,5 +1,6 @@
 #include "led_status.h"
 #include "configuration.h"
+#include "webserial_logging.h"
 
 // Define blink intervals
 #define CONNECTING_BLINK_INTERVAL 500  // 500 ms for station connecting state

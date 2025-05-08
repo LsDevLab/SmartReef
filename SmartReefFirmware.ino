@@ -8,13 +8,19 @@
 #include "reset_task.h"
 #include <ElegantOTA.h>
 #include "configuration.h"
-
+#include "webserial_logging.h"
+#include <FS.h>
+#include <SPIFFS.h>
 
 void setup() {
   Serial.begin(115200);
   delay(1000); // Give time to initialize serial
 
-  Serial.println("\nStarting Smart Aquarium System (v.0.0.1)...\n");
+  if (!SPIFFS.begin(true)) {
+        Serial.println("SPIFFS Mount Failed");
+    }
+
+  logPrintln("\nStarting Smart Aquarium System (v.0.0.1)...\n");
   
   ledStatus.begin();
 

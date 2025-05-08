@@ -7,6 +7,7 @@
 #define TAPO_DEBUG_MODE // Comment this line to disable debug messages
 #include "tapo_device.h"
 #include "tuya_device.h"
+#include "webserial_logging.h"
 
 
 // your existing flags
@@ -28,7 +29,7 @@ void setupActuators() {
   lightActive = getLightValue();
   wavePump1Active = getWavepump1Value();
   wavePump2Active = getWavepump2Value();
-  Serial.println("Refill pump control initialized.");
+  logPrintln("Refill pump control initialized.");
   delay(2000);
 }
 
@@ -42,7 +43,7 @@ void setControlVariables() {
 
   struct tm timeinfo;
   if (WiFi.status() != WL_CONNECTED || !getLocalTime(&timeinfo)) {
-    Serial.println("No internet or time, turning on lights, and wavepump1");
+    logPrintln("No internet or time, turning on lights, and wavepump1");
     wavePump1Active = true;
     wavePump2Active = false;
     lightActive = true;
@@ -71,18 +72,17 @@ void refillTankSubcontrol() {
   readTankFilledSensor();
   while (!timeout && !tankFilled) {
     refillPumpActive = true;
-    Serial.print("Refill Pump: ON .");
+    logPrintln("Refill Pump: ON");
     // Keep pump on for up to 10 seconds
     if (millis()- pumpStart <= 10000) {
       digitalWrite(RELAY_FILL_PUMP, LOW);  // relay active low
       ledStatus.setWaterRefilling();
       ledStatus.update();
-      Serial.print(".");
       delay(1000);
     } else {
       ledStatus.off();
       ledStatus.update();
-      Serial.println("Refill Pump TIMEOUT");
+      logPrintln("Refill Pump TIMEOUT");
       timeout = true;
     }
     readTankFilledSensor();
@@ -90,7 +90,7 @@ void refillTankSubcontrol() {
   }
   digitalWrite(RELAY_FILL_PUMP, HIGH);
   refillPumpActive = false;
-  Serial.println("Refill Pump: OFF (tank filled)");
+  logPrintln("Refill Pump: OFF (tank filled)");
 }
 
 void setLightValue(bool on) {

@@ -5,6 +5,7 @@
 #include "wifi_setup.h"
 #include "rest_ota_server.h"
 #include "configuration.h"
+#include "webserial_logging.h"
 
 Preferences prefs;
 WebServer configServer(80);
@@ -41,9 +42,9 @@ void setupNetwork() {
     }
 
 
-    Serial.print("Trying to connect to WiFi network ");
-    Serial.print(savedSSID.c_str());
-    Serial.println("...");
+    logPrint("Trying to connect to WiFi network ");
+    logPrint(savedSSID.c_str());
+    logPrintln("...");
     
     ledStatus.setStationConnecting();
     unsigned long startAttempt = millis();
@@ -59,9 +60,9 @@ void setupNetwork() {
 
     if (WiFi.status() == WL_CONNECTED) {
 
-      Serial.println("Connected as STA.");
-      Serial.print("IP: ");
-      Serial.println(WiFi.localIP());
+      logPrintln("Connected as STA.");
+      logPrint("IP: ");
+      logPrintln(WiFi.localIP().toString());
      
       ledStatus.off();
       ledStatus.update();
@@ -72,7 +73,7 @@ void setupNetwork() {
       return;
     }
 
-    Serial.println("Cannot connect to Wifi.");
+    logPrintln("Cannot connect to Wifi.");
     ledStatus.setErrorStationConnecting();
     startAttempt = millis();
     while(millis()-startAttempt < 4000){
@@ -89,7 +90,7 @@ void setupNetwork() {
   }
 
   // If no saved credentials or connect failed
-  Serial.println("Starting AP mode for configuration...");
+  logPrintln("Starting AP mode for configuration...");
   startAPMode();
   prefs.end();
 }
@@ -98,33 +99,33 @@ void setupNetwork() {
 // ======== AP MODE SETUP ========
 void startAPMode() {
 
-    Serial.println("Entering startAPMode()...");
+    logPrintln("Entering startAPMode()...");
 
   //ledStatus.setAPMode();  // Could be crashing here!
-  Serial.println("ledStatus.setAPMode() done.");
+  logPrintln("ledStatus.setAPMode() done.");
 
   WiFi.disconnect(true);
-  Serial.println("WiFi.disconnect() done.");
+  logPrintln("WiFi.disconnect() done.");
 
   WiFi.mode(WIFI_OFF);
-  Serial.println("WiFi.mode(WIFI_OFF) done.");
+  logPrintln("WiFi.mode(WIFI_OFF) done.");
 
   delay(100);
-  Serial.println("Delay after WiFi.mode(WIFI_OFF) complete.");
+  logPrintln("Delay after WiFi.mode(WIFI_OFF) complete.");
 
   WiFi.mode(WIFI_AP);
-  Serial.println("WiFi.mode(WIFI_AP) done.");
+  logPrintln("WiFi.mode(WIFI_AP) done.");
 
   bool apStarted = WiFi.softAP(CONFIG_AP_SSID, CONFIG_AP_PASSWORD);
   if (!apStarted) {
-    Serial.println("WiFi.softAP() failed!");
+    logPrintln("WiFi.softAP() failed!");
     return;
   }
-  Serial.println("WiFi.softAP() success.");
+  logPrintln("WiFi.softAP() success.");
 
   IPAddress IP = WiFi.softAPIP();
-  Serial.print("AP IP address: ");
-  Serial.println(IP);
+  logPrint("AP IP address: ");
+  logPrintln(IP);
 
 configServer.on("/", HTTP_GET, []() {
   configServer.send(200, "text/html", R"rawliteral(
@@ -272,7 +273,7 @@ configServer.on("/", HTTP_GET, []() {
   configServer.begin();
 
   while(true) {
-    Serial.println(WiFi.status());
+    logPrintln(WiFi.status());
     ledStatus.update();       // Fast blink for AP mode
     configServer.handleClient();
     delay(10);

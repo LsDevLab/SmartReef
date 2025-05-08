@@ -5,6 +5,9 @@
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include "configuration.h"
+#include "webserial_logging.h"
+#include <FS.h>
+#include <SPIFFS.h>
 
 WebServer server(80);
 
@@ -124,6 +127,22 @@ void setupRoutes() {
     serializeJson(doc, response);
     server.send(200, "application/json", response);
   });
+  
+  // GET api/logs
+  server.on("/api/logs", HTTP_GET, []() {
+    File logFile = SPIFFS.open(LOG_FILE_PATH, FILE_READ);
+    if (!logFile) {
+        server.send(500, "text/plain", "Failed to open log file.");
+        return;
+    }
+    // Send log file content as response
+    String logContent = "";
+    while (logFile.available()) {
+        logContent += (char)logFile.read();
+    }
+    logFile.close();
+    server.send(200, "text/plain", logContent); // Send logs as plain text
+  });
 
   // POST /api/actuators/refillPumpActive
   server.on("/api/actuators/refillPump", HTTP_POST, []() {
@@ -187,7 +206,7 @@ void setupRoutes() {
 void startRestOtaServer() {
   setupRoutes();
   server.begin();
-  Serial.println("REST+ElegantOTA webserver initialized.");
+  logPrintln("REST+ElegantOTA webserver initialized.");
 
   // Create FreeRTOS task for handling HTTP
   xTaskCreatePinnedToCore(

@@ -2,6 +2,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include "configuration.h"
+#include "webserial_logging.h"
 
 OneWire oneWire(WATER_TEMP_SENSOR_PIN);
 DallasTemperature temperatureSensor(&oneWire);

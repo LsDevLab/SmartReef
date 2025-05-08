@@ -2,6 +2,7 @@
 #include "reset_task.h"
 #include <Preferences.h>
 #include "configuration.h"
+#include "webserial_logging.h"
 
 static gpio_num_t resetPin;
 static uint32_t holdTime = RESET_PIN_HOLD_TIME;
@@ -19,7 +20,7 @@ void IRAM_ATTR resetButtonInterrupt() {
             unsigned long pressDuration = millis() - pressStart;
             if (pressDuration >= holdTime) {
                 // Button was held long enough to trigger reset
-                Serial.println("Button held — resetting preferences and restarting...");
+                logPrintln("Button held — resetting preferences and restarting...");
                 ledStatus.setResetting();
 //                unsigned long startAttempt = millis();
 //                while (millis() - startAttempt < 1000) {

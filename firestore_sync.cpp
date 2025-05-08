@@ -5,6 +5,7 @@
 #include "actuators.h"
 #include <WiFiClientSecure.h>
 #include "configuration.h"
+#include "webserial_logging.h"
 
 WiFiClientSecure ssl_client;
 using AsyncClient = AsyncClientClass;
@@ -17,7 +18,7 @@ AsyncResult firestoreResult;
 
 void initFirebase() {
   if (WiFi.status() != WL_CONNECTED) return;
-  Serial.println("Initializing Firebase...");
+  logPrintln("Initializing Firebase...");
   ssl_client.setInsecure();
   ssl_client.setConnectionTimeout(1000);
   ssl_client.setHandshakeTimeout(5);
@@ -30,7 +31,7 @@ void initFirebase() {
 String getTimestampString() {
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
-    Serial.println("Failed to obtain time");
+    logPrintln("Failed to obtain time");
     return String("Error");
   }
   char buf[80];
@@ -41,7 +42,7 @@ String getTimestampString() {
 unsigned long getTimestampNumeric() {
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
-    Serial.println("Failed to obtain time");
+    logPrintln("Failed to obtain time");
     return 0;
   }
   return mktime(&timeinfo);
@@ -72,14 +73,14 @@ void uploadStatusToFirestore() {
   doc.add("refillPump", Values::Value(refillPumpVal));
 
   String fullDocPath = "status/" + timestampStr;
-  Serial.print("Saving status on Firebase...");
+  logPrint("Saving status on Firebase...");
   Docs.createDocument(aClient, Firestore::Parent(FIREBASE_PROJECT_ID), fullDocPath, DocumentMask(), doc, processData, "createStatusDoc");
 
   if (aClient.lastError().code() == 0)
-    Serial.println("Done.");
+    logPrintln("Done.");
   else {
-    Serial.print("Error: ");
-    Serial.println(aClient.lastError().message().c_str());
+    logPrint("Error: ");
+    logPrintln(aClient.lastError().message().c_str());
   }
 }
 
@@ -99,23 +100,23 @@ void uploadRefillWaterStatusToFirestore() {
   doc.add("refillPump", Values::Value(refillPumpVal));
 
   String fullDocPath = "status/" + timestampStr;
-  Serial.print("Saving refill status on Firebase...");
+  logPrint("Saving refill status on Firebase...");
   Docs.createDocument(aClient, Firestore::Parent(FIREBASE_PROJECT_ID), fullDocPath, DocumentMask(), doc, processData, "createRefillDoc");
 
   if (aClient.lastError().code() == 0)
-    Serial.println("Done.");
+    logPrintln("Done.");
   else {
-    Serial.print("Error: ");
-    Serial.println(aClient.lastError().message().c_str());
+    logPrint("Error: ");
+    logPrintln(aClient.lastError().message().c_str());
   }
 }
 
 void firestoreUploadCallback(AsyncResult &result) {
   if (result.isError()) {
-    Serial.printf("Firestore upload failed: %s (code %d)\n", result.error().message().c_str(), result.error().code());
+    logPrintf("Firestore upload failed: %s (code %d)\n", result.error().message().c_str(), result.error().code());
   } else if (result.available()) {
-    Serial.println("Firestore document uploaded:");
-    Serial.println(result.c_str());
+    logPrintln("Firestore document uploaded:");
+    logPrintln(result.c_str());
   }
 }
 

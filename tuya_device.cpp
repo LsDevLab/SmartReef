@@ -5,6 +5,7 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <mbedtls/md.h>
+#include "webserial_logging.h"
 
 static String tuyaToken;
 static unsigned long tuyaTokenExpires = 0;
@@ -99,11 +100,11 @@ bool tuyaGetSwitch(const char* deviceId){
                 }
             }
         } else {
-            Serial.println("JSON parse error in getTuyaDeviceSwitchState()");
+            logPrintln("JSON parse error in getTuyaDeviceSwitchState()");
         }
     } else {
-        Serial.print("Failed to GET status. HTTP code: ");
-        Serial.println(httpCode);
+        logPrint("Failed to GET status. HTTP code: ");
+        logPrintln(httpCode);
     }
 
     http.end();
