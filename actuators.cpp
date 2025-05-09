@@ -20,6 +20,8 @@ bool refillPumpActive = false;
 int lightOnHour  = 17;
 int lightOffHour = 24;
 
+unsigned long pumpLastFilled;
+
 TapoDevice tapoLight;
 
 void setupActuators() {
@@ -27,8 +29,8 @@ void setupActuators() {
   digitalWrite(RELAY_FILL_PUMP, !refillPumpActive);
   tapoLight.begin(TAPO_LIGHT_IP, TAPO_USERNAME, TAPO_PASSWORD);
   lightActive = getLightValue();
-  wavePump1Active = getWavepump1Value();
-  wavePump2Active = getWavepump2Value();
+  //wavePump1Active = getWavepump1Value();
+  //wavePump2Active = getWavepump2Value();
   logPrintln("Refill pump control initialized.");
   delay(2000);
 }
@@ -70,11 +72,16 @@ void refillTankSubcontrol() {
   bool timeout = false;
 
   readTankFilledSensor();
-  while (!timeout && !tankFilled) {
+  if(pumpLastFilled && millis() - pumpLastFilled < 24*60*60000){
+      logPrintln("Filled less than 1 day ago");
+      return;
+    }
+  while (!timeout && !tankFilled) { // max 1 a day
     refillPumpActive = true;
     logPrintln("Refill Pump: ON");
     // Keep pump on for up to 10 seconds
-    if (millis()- pumpStart <= 10000) {
+    if (millis() - pumpStart <= 10000) {
+      pumpLastFilled = millis();
       digitalWrite(RELAY_FILL_PUMP, LOW);  // relay active low
       ledStatus.setWaterRefilling();
       ledStatus.update();

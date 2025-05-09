@@ -7,7 +7,7 @@
 #include "webserial_logging.h"
 
 void printStatus() {
-  logPrintln("\n===================== Aquarium Status =====================");
+  logPrintln("===================== Aquarium Status =====================");
 
   printLocalTime();
 
@@ -15,20 +15,20 @@ void printStatus() {
   logPrintln("------------------------  Sensors -------------------------");
 
   // Digital water level sensor: LOW = Water present, HIGH = No water
-  logPrint("      Water Level Sensor:  ");
+  logPrint("Water Level Sensor: ");
   logPrintln(tankFilled ? "WATER DETECTED" : "LOW / NO WATER");
 
   if (tempC != DEVICE_DISCONNECTED_C) {
-    logPrint("      Water Temperature (°C):  ");
+    logPrint("Water Temperature (°C): ");
     logPrintln(tempC);
   } else {
-    logPrint("      Water Temperature (°C):  Error - Sensor disconnected\n");
+    logPrint("Water Temperature (°C):  Error - Sensor disconnected\n");
   }
 
   // Actuator States
   logPrintln("------------------------- Actuators -----------------------");
-  logPrint("                 Wave Pump 1:  "); logPrintln(wavePump1Active ? "ON" : "OFF");
-  logPrint("                 Wave Pump 2:  "); logPrintln(wavePump2Active ? "ON" : "OFF");
-  logPrint("                       Light:  "); logPrintln(lightActive ? "ON" : "OFF");
-  logPrint("                 Refill Pump:  "); logPrintln(refillPumpActive ? "ON" : "OFF");
+  logPrint("Wave Pump 1: "); logPrintln(wavePump1Active ? "ON" : "OFF");
+  logPrint("Wave Pump 2: "); logPrintln(wavePump2Active ? "ON" : "OFF");
+  logPrint("Light: "); logPrintln(lightActive ? "ON" : "OFF");
+  logPrint("Refill Pump: "); logPrintln(refillPumpActive ? "ON" : "OFF");
 }

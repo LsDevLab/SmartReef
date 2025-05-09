@@ -1,6 +1,7 @@
 #include "led_status.h"
 #include "reset_task.h"
 #include <Preferences.h>
+#include <WiFi.h>
 #include "configuration.h"
 #include "webserial_logging.h"
 
@@ -19,6 +20,8 @@ void IRAM_ATTR resetButtonInterrupt() {
         if (buttonPressed) {
             unsigned long pressDuration = millis() - pressStart;
             if (pressDuration >= holdTime) {
+              loggingEnabled = false;
+              delay(100);
                 // Button was held long enough to trigger reset
                 logPrintln("Button held — resetting preferences and restarting...");
                 ledStatus.setResetting();

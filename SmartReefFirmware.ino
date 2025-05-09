@@ -20,6 +20,9 @@ void setup() {
         Serial.println("SPIFFS Mount Failed");
     }
 
+Serial.printf("Total: %u bytes, Used: %u bytes\n", SPIFFS.totalBytes(), SPIFFS.usedBytes());
+
+
   logPrintln("\nStarting Smart Aquarium System (v.0.0.1)...\n");
   
   ledStatus.begin();
@@ -62,5 +65,3 @@ void loop() {
     syncTimeIfNeeded();
 
 }
-
-//not use com usb port

@@ -96,8 +96,8 @@ void setupRoutes() {
  // GET /api/actuators
   server.on("/api/actuators", HTTP_GET, []() {
     lightActive = getLightValue();
-    wavePump1Active = getWavepump1Value();
-    wavePump2Active = getWavepump2Value();
+    //wavePump1Active = getWavepump1Value();
+    //wavePump2Active = getWavepump2Value();
     DynamicJsonDocument doc(256);
     doc["refillPumpActive"] = refillPumpActive;
     doc["wavePump1Active"] = wavePump1Active;

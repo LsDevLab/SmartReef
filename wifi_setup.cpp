@@ -68,6 +68,9 @@ void setupNetwork() {
       ledStatus.update();
       prefs.end();
 
+      Serial.printf("Wi-Fi RSSI: %d dBm\n", WiFi.RSSI());
+
+
       startRestOtaServer();
 
       return;

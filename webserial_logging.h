@@ -1,6 +1,8 @@
 #pragma once
 #include <Arduino.h>
 
+extern bool loggingEnabled;
+
 void logPrint(const String& message);
 void logPrintln(const String& message);
 void logPrint(const char* message);

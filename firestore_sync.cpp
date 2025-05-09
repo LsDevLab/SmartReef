@@ -6,6 +6,8 @@
 #include <WiFiClientSecure.h>
 #include "configuration.h"
 #include "webserial_logging.h"
+#include <FS.h>
+#include <SPIFFS.h>
 
 WiFiClientSecure ssl_client;
 using AsyncClient = AsyncClientClass;
@@ -22,7 +24,11 @@ void initFirebase() {
   ssl_client.setInsecure();
   ssl_client.setConnectionTimeout(1000);
   ssl_client.setHandshakeTimeout(5);
+
   Firebase.printf("Firebase Client v%s\n", FIREBASE_CLIENT_VERSION);
+  Serial.printf("Total: %u bytes, Used: %u bytes\n", SPIFFS.totalBytes(), SPIFFS.usedBytes());
+
+  Serial.printf("Free heap: %u bytes\n", ESP.getFreeHeap());
   initializeApp(aClient, app, getAuth(user_auth), processData, "🔐 authTask");
   app.getApp<Firestore::Documents>(Docs);
   delay(1000);
@@ -55,7 +61,7 @@ void uploadStatusToFirestore() {
   String timestampStr = String(timestamp);
 
   Values::IntegerValue timestampVal(timestamp);
-  Values::BooleanValue waterDetectedVal(digitalRead(WATER_LEVEL_SENSOR_PIN) == LOW);  // LOW means water present
+  Values::BooleanValue tankFilledVal(tankFilled);  // LOW means water present
   Values::DoubleValue tempVal(number_t(tempC, 2));
   
   Values::BooleanValue wavePump1Val(wavePump1Active);
@@ -65,7 +71,7 @@ void uploadStatusToFirestore() {
 
   Document<Values::Value> doc;
   doc.add("timestamp", Values::Value(timestampVal));
-  doc.add("waterDetected", Values::Value(waterDetectedVal));
+  doc.add("tankFilled", Values::Value(tankFilledVal));
   doc.add("tempC", Values::Value(tempVal));
   doc.add("wavePump1", Values::Value(wavePump1Val));
   doc.add("wavePump2", Values::Value(wavePump2Val));
@@ -91,12 +97,12 @@ void uploadRefillWaterStatusToFirestore() {
   String timestampStr = String(timestamp);
 
   Values::IntegerValue timestampVal(timestamp);
-  Values::BooleanValue waterDetectedVal(digitalRead(WATER_LEVEL_SENSOR_PIN) == LOW);
+  Values::BooleanValue tankFilledVal(tankFilled);
   Values::BooleanValue refillPumpVal(refillPumpActive);
 
   Document<Values::Value> doc;
   doc.add("timestamp", Values::Value(timestampVal));
-  doc.add("waterDetected", Values::Value(waterDetectedVal));
+  doc.add("tankFilled", Values::Value(tankFilledVal));
   doc.add("refillPump", Values::Value(refillPumpVal));
 
   String fullDocPath = "status/" + timestampStr;
@@ -124,11 +130,11 @@ void processData(AsyncResult &aResult) {
   if (!aResult.isResult()) return;
 
   if (aResult.isEvent())
-    Firebase.printf("Event: %s | %s (code %d)\n", aResult.uid().c_str(), aResult.eventLog().message().c_str(), aResult.eventLog().code());
+    Firebase.printf("FIREBASE Event: %s | %s (code %d)\n", aResult.uid().c_str(), aResult.eventLog().message().c_str(), aResult.eventLog().code());
   if (aResult.isDebug())
-    Firebase.printf("Debug: %s | %s\n", aResult.uid().c_str(), aResult.debug().c_str());
+    Firebase.printf("FIREBASE Debug: %s | %s\n", aResult.uid().c_str(), aResult.debug().c_str());
   if (aResult.isError())
-    Firebase.printf("Error: %s | %s (code %d)\n", aResult.uid().c_str(), aResult.error().message().c_str(), aResult.error().code());
-  if (aResult.available())
-    Firebase.printf("Payload: %s | %s\n", aResult.uid().c_str(), aResult.c_str());
+    Firebase.printf("FIREBASE Error: %s | %s (code %d)\n", aResult.uid().c_str(), aResult.error().message().c_str(), aResult.error().code());
+  //if (aResult.available())
+  //  Firebase.printf("FIREBASE Payload: %s | %s\n", aResult.uid().c_str(), aResult.c_str());
 }
