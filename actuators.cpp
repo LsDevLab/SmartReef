@@ -18,7 +18,7 @@ bool refillPumpActive = false;
 
 // light schedule
 int lightOnHour  = 17;
-int lightOffHour = 24;
+int lightOffHour = 23;
 
 unsigned long pumpLastFilled;
 
