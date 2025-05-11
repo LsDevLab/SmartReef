@@ -3,7 +3,7 @@
 #include <Preferences.h>
 #include "led_status.h"
 #include "wifi_setup.h"
-#include "rest_ota_server.h"
+#include "web_server.h"
 #include "configuration.h"
 #include "webserial_logging.h"
 

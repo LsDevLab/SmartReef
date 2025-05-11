@@ -49,13 +49,14 @@ void setControlVariables() {
     wavePump1Active = true;
     wavePump2Active = false;
     lightActive = true;
-    //tuyaSetSwitch(TUYA_WAVEPUMP1_ID, wavePump1Active);
     setLightValue(lightActive);
+    //setWavepump1Value(wavePump1Active);
+    //setWavepump2Value(wavePump2Active);
     return;
   }
 
   // alternate wave pumps
-  wavePump1Active = (timeinfo.tm_hour % 2 == 0);
+  //wavePump1Active = true; //(timeinfo.tm_hour % 2 == 0);
   wavePump2Active = !wavePump1Active;
 
   // light schedule
@@ -63,8 +64,8 @@ void setControlVariables() {
 
   // ** now call cloud‑APIs **
   setLightValue(lightActive);
-  setWavepump1Value(wavePump1Active);
-  setWavepump2Value(wavePump2Active);
+  //setWavepump1Value(wavePump1Active);
+  //setWavepump2Value(wavePump2Active);
 }
 
 void refillTankSubcontrol() {
