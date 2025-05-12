@@ -1,11 +1,14 @@
-#ifndef WEB_SERVER_H
-#define WEB_SERVER_H
+#pragma once
 
-#include <WiFi.h>
-#include <WebServer.h>
+#include <ESPAsyncWebServer.h>
+#include <ElegantOTA.h>
+#include "webserial_logging.h"
+#include "configuration.h"
+#include <FS.h>
+#include <SPIFFS.h>
 
-extern WebServer server;
+
+// Route to serve the logs
+void setupRoutes();
 
 void startWebServer();
-
-#endif // WEB_SERVER_H

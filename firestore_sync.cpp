@@ -1,44 +1,61 @@
 #include "firestore_sync.h"
-#include <WiFi.h>
-#include <FirebaseClient.h>
-#include "sensors.h"
-#include "actuators.h"
-#include <WiFiClientSecure.h>
-#include "configuration.h"
-#include "webserial_logging.h"
+
 #include <FS.h>
 #include <SPIFFS.h>
 
-WiFiClientSecure ssl_client;
+// --- Main SSL client for Firestore & writes ---
+static WiFiClientSecure ssl_client;
 using AsyncClient = AsyncClientClass;
-AsyncClient aClient(ssl_client);
+static AsyncClient aClient(ssl_client);
 
+// --- RTDB stream-specific SSL client ---
+static WiFiClientSecure stream_ssl_client;
+static AsyncClient streamClient(stream_ssl_client);
+
+// Firebase objects
 UserAuth user_auth(API_KEY, USER_EMAIL, USER_PASSWORD, 3000);
 FirebaseApp app;
+RealtimeDatabase Database;
 Firestore::Documents Docs;
-AsyncResult firestoreResult;
+
+AsyncResult firestoreResult, streamResult;
 
 void initFirebase() {
   if (WiFi.status() != WL_CONNECTED) return;
+
   logPrintln("Initializing Firebase...");
+
+  // SSL Setup
   ssl_client.setInsecure();
   ssl_client.setConnectionTimeout(1000);
   ssl_client.setHandshakeTimeout(5);
+  stream_ssl_client.setInsecure();
+  stream_ssl_client.setConnectionTimeout(1000);
+  stream_ssl_client.setHandshakeTimeout(5);
 
   Firebase.printf("Firebase Client v%s\n", FIREBASE_CLIENT_VERSION);
-  Serial.printf("Total: %u bytes, Used: %u bytes\n", SPIFFS.totalBytes(), SPIFFS.usedBytes());
+  //Serial.printf("SPIFFS Total: %u, Used: %u\n", SPIFFS.totalBytes(), SPIFFS.usedBytes());
+  //Serial.printf("Free heap: %u\n", ESP.getFreeHeap());
 
-  Serial.printf("Free heap: %u bytes\n", ESP.getFreeHeap());
-  initializeApp(aClient, app, getAuth(user_auth), processData, "🔐 authTask");
+  initializeApp(aClient, app, getAuth(user_auth), processData, "authTask");
   app.getApp<Firestore::Documents>(Docs);
-  delay(1000);
+  app.getApp<RealtimeDatabase>(Database);
+  Database.url(FIREBASE_DATABASE_URL);
+
+  delay(2000);  // wait for auth
+
+  // --- Open streams for actuators and config ---
+  Database.get(streamClient, "/actuators", processData, true, "stream_actuators");
+  Database.get(streamClient, "/config", processData, true, "stream_config");
+
+  logPrintln("RTDB streams started on /actuators and /config");
 }
 
 String getTimestampString() {
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
     logPrintln("Failed to obtain time");
-    return String("Error");
+    return "Error";
   }
   char buf[80];
   strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
@@ -57,33 +74,30 @@ unsigned long getTimestampNumeric() {
 void uploadStatusToFirestore() {
   if (!app.ready() || WiFi.status() != WL_CONNECTED) return;
 
-  unsigned long timestamp = getTimestampNumeric();
-  String timestampStr = String(timestamp);
-
-  Values::IntegerValue timestampVal(timestamp);
-  Values::BooleanValue tankFilledVal(tankFilled);  // LOW means water present
-  Values::DoubleValue tempVal(number_t(tempC, 2));
-  
-  Values::BooleanValue wavePump1Val(wavePump1Active);
-  Values::BooleanValue wavePump2Val(wavePump2Active);
-  Values::BooleanValue lightVal(lightActive);
-  Values::BooleanValue refillPumpVal(refillPumpActive);
+  auto tsNum = getTimestampNumeric();
+  String tsStr = String(tsNum);
+  updateStatusToFirebaseRTDB(tsStr);
 
   Document<Values::Value> doc;
-  doc.add("timestamp", Values::Value(timestampVal));
-  doc.add("tankFilled", Values::Value(tankFilledVal));
-  doc.add("tempC", Values::Value(tempVal));
-  doc.add("wavePump1", Values::Value(wavePump1Val));
-  doc.add("wavePump2", Values::Value(wavePump2Val));
-  doc.add("light", Values::Value(lightVal));
-  doc.add("refillPump", Values::Value(refillPumpVal));
+  doc.add("timestamp", Values::Value(Values::IntegerValue(tsNum)));
+  doc.add("tankFilled", Values::Value(Values::BooleanValue(tankFilled)));
+  doc.add("tempC", Values::Value(Values::DoubleValue(number_t(tempC, 2))));
+  doc.add("wavePump1", Values::Value(Values::BooleanValue(wavePump1Active)));
+  doc.add("wavePump2", Values::Value(Values::BooleanValue(wavePump2Active)));
+  doc.add("light", Values::Value(Values::BooleanValue(lightActive)));
+  doc.add("refillPump", Values::Value(Values::BooleanValue(refillPumpActive)));
 
-  String fullDocPath = "status/" + timestampStr;
-  logPrint("Saving status on Firebase...");
-  Docs.createDocument(aClient, Firestore::Parent(FIREBASE_PROJECT_ID), fullDocPath, DocumentMask(), doc, processData, "createStatusDoc");
+  String fullPath = "status/" + tsStr;
+  logPrint("Saving status to Firestore...");
+  Docs.createDocument(aClient,
+                      Firestore::Parent(FIREBASE_PROJECT_ID),
+                      fullPath,
+                      DocumentMask(),
+                      doc,
+                      processData,
+                      "createStatusDoc");
 
-  if (aClient.lastError().code() == 0)
-    logPrintln("Done.");
+  if (aClient.lastError().code() == 0) logPrintln("Done.");
   else {
     logPrint("Error: ");
     logPrintln(aClient.lastError().message().c_str());
@@ -93,48 +107,104 @@ void uploadStatusToFirestore() {
 void uploadRefillWaterStatusToFirestore() {
   if (!app.ready() || WiFi.status() != WL_CONNECTED) return;
 
-  unsigned long timestamp = getTimestampNumeric();
-  String timestampStr = String(timestamp);
-
-  Values::IntegerValue timestampVal(timestamp);
-  Values::BooleanValue tankFilledVal(tankFilled);
-  Values::BooleanValue refillPumpVal(refillPumpActive);
+  auto tsNum = getTimestampNumeric();
+  String tsStr = String(tsNum);
+  updateRefillStatusToFirebaseRTDB(tsStr);
 
   Document<Values::Value> doc;
-  doc.add("timestamp", Values::Value(timestampVal));
-  doc.add("tankFilled", Values::Value(tankFilledVal));
-  doc.add("refillPump", Values::Value(refillPumpVal));
+  doc.add("timestamp", Values::Value(Values::IntegerValue(tsNum)));
+  doc.add("tankFilled", Values::Value(Values::BooleanValue(tankFilled)));
+  doc.add("refillPump", Values::Value(Values::BooleanValue(refillPumpActive)));
 
-  String fullDocPath = "status/" + timestampStr;
-  logPrint("Saving refill status on Firebase...");
-  Docs.createDocument(aClient, Firestore::Parent(FIREBASE_PROJECT_ID), fullDocPath, DocumentMask(), doc, processData, "createRefillDoc");
+  String fullPath = "status/" + tsStr;
+  logPrint("Saving refill status to Firestore...");
+  Docs.createDocument(aClient,
+                      Firestore::Parent(FIREBASE_PROJECT_ID),
+                      fullPath,
+                      DocumentMask(),
+                      doc,
+                      processData,
+                      "createRefillDoc");
 
-  if (aClient.lastError().code() == 0)
-    logPrintln("Done.");
+  if (aClient.lastError().code() == 0) logPrintln("Done.");
   else {
     logPrint("Error: ");
     logPrintln(aClient.lastError().message().c_str());
   }
 }
 
-void firestoreUploadCallback(AsyncResult &result) {
+void processData(AsyncResult &result) {
+  if (!result.isResult()) return;
+
+  if (result.available()) {
+    if (result.to<RealtimeDatabaseResult>().isStream()) {
+      auto &r = result.to<RealtimeDatabaseResult>();
+      String path = r.dataPath();
+      String value = r.to<const char*>();
+
+      logPrintf("[STREAM] Event: %s | Path: %s | Value: %s\n",
+                r.event().c_str(), path.c_str(), value.c_str());
+
+      // --- Actuator Updates ---
+      if (path == "/refillPumpActive") {
+        refillPumpActive = value == "true";
+        digitalWrite(RELAY_FILL_PUMP, refillPumpActive ? LOW : HIGH);
+        logPrintln("Updated: refillPumpActive");
+
+      } else if (path == "/wavePump1Active") {
+        wavePump1Active = value == "true";
+        setWavepump1Value(wavePump1Active);
+        logPrintln("Updated: wavePump1Active");
+
+      } else if (path == "/wavePump2Active") {
+        wavePump2Active = value == "true";
+        setWavepump2Value(wavePump2Active);
+        logPrintln("Updated: wavePump2Active");
+
+      } else if (path == "/lightActive") {
+        lightActive = value == "true";
+        setLightValue(lightActive);
+        logPrintln("Updated: lightActive");
+
+      // --- Config Updates ---
+      } else if (path == "/lightOnHour") {
+        lightOnHour = atoi(value.c_str());
+        logPrintf("Updated: lightOnHour = %d\n", lightOnHour);
+
+      } else if (path == "/lightOffHour") {
+        lightOffHour = atoi(value.c_str());
+        logPrintf("Updated: lightOffHour = %d\n", lightOffHour);
+      }
+
+    } else {
+      // Non-stream callback result (e.g. Firestore write)
+      Serial.printf("[CALLBACK] Task: %s | Data: %s\n",
+                    result.uid().c_str(), result.c_str());
+    }
+  }
+
   if (result.isError()) {
-    logPrintf("Firestore upload failed: %s (code %d)\n", result.error().message().c_str(), result.error().code());
-  } else if (result.available()) {
-    logPrintln("Firestore document uploaded:");
-    logPrintln(result.c_str());
+    logPrintf("[ERROR] %s: %s (code %d)\n",
+              result.uid().c_str(),
+              result.error().message().c_str(),
+              result.error().code());
   }
 }
 
-void processData(AsyncResult &aResult) {
-  if (!aResult.isResult()) return;
+void updateStatusToFirebaseRTDB(const String &lastUpdated) {
+  Database.set<number_t>(aClient, "/sensors/temperatureC", number_t(tempC, 2), processData, "setTemp");
+  Database.set<bool>(aClient, "/sensors/tankFilled", tankFilled, processData, "setTank");
+  Database.set<bool>(aClient, "/actuators/refillPumpActive", refillPumpActive, processData, "setRefillPump");
+  Database.set<bool>(aClient, "/actuators/wavePump1Active", wavePump1Active, processData, "setWave1");
+  Database.set<bool>(aClient, "/actuators/wavePump2Active", wavePump2Active, processData, "setWave2");
+  Database.set<bool>(aClient, "/actuators/lightActive", lightActive, processData, "setLight");
+  Database.set<int>(aClient, "/config/lightOnHour", lightOnHour, processData, "setOnHour");
+  Database.set<int>(aClient, "/config/lightOffHour", lightOffHour, processData, "setOffHour");
+  Database.set<String>(aClient, "/lastUpdated", lastUpdated, processData, "setLastUpdated");
+}
 
-  if (aResult.isEvent())
-    Firebase.printf("FIREBASE Event: %s | %s (code %d)\n", aResult.uid().c_str(), aResult.eventLog().message().c_str(), aResult.eventLog().code());
-  if (aResult.isDebug())
-    Firebase.printf("FIREBASE Debug: %s | %s\n", aResult.uid().c_str(), aResult.debug().c_str());
-  if (aResult.isError())
-    Firebase.printf("FIREBASE Error: %s | %s (code %d)\n", aResult.uid().c_str(), aResult.error().message().c_str(), aResult.error().code());
-  //if (aResult.available())
-  //  Firebase.printf("FIREBASE Payload: %s | %s\n", aResult.uid().c_str(), aResult.c_str());
+void updateRefillStatusToFirebaseRTDB(const String &lastUpdated) {
+  Database.set<bool>(aClient, "/sensors/tankFilled", tankFilled, processData, "setTankRefill");
+  Database.set<bool>(aClient, "/actuators/refillPumpActive", refillPumpActive, processData, "setRefillPumpRefill");
+  Database.set<String>(aClient, "/lastUpdated", lastUpdated, processData, "setLastUpdatedRefill");
 }

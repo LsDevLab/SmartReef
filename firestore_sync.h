@@ -1,15 +1,19 @@
+#pragma once
 
-#ifndef FIRESTORE_SYNC_H
-#define FIRESTORE_SYNC_H
+#include <Arduino.h>
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <FirebaseClient.h>
-
+#include "sensors.h"
+#include "actuators.h"
+#include "configuration.h"
+#include "webserial_logging.h"
 
 extern FirebaseApp app;
 
 void initFirebase();
 void uploadStatusToFirestore();
 void uploadRefillWaterStatusToFirestore();
-void firestoreUploadCallback(AsyncResult &result);
-void processData(AsyncResult &aResult);
-
-#endif
+void processData(AsyncResult &result);
+void updateStatusToFirebaseRTDB(const String &lastUpdated);
+void updateRefillStatusToFirebaseRTDB(const String &lastUpdated);
