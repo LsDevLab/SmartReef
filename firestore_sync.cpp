@@ -45,8 +45,7 @@ void initFirebase() {
   delay(2000);  // wait for auth
 
   // --- Open streams for actuators and config ---
-  Database.get(streamClient, "/actuators", processData, true, "stream_actuators");
-  Database.get(streamClient, "/config", processData, true, "stream_config");
+  Database.get(streamClient, "/realtime_data", processData, true, "realtime_data");
 
   logPrintln("RTDB streams started on /actuators and /config");
 }
@@ -146,32 +145,32 @@ void processData(AsyncResult &result) {
                 r.event().c_str(), path.c_str(), value.c_str());
 
       // --- Actuator Updates ---
-      if (path == "/refillPumpActive") {
+      if (path == "/actuators/refillPumpActive") {
         refillPumpActive = value == "true";
         digitalWrite(RELAY_FILL_PUMP, refillPumpActive ? LOW : HIGH);
         logPrintln("Updated: refillPumpActive");
 
-      } else if (path == "/wavePump1Active") {
+      } else if (path == "/actuators/wavePump1Active") {
         wavePump1Active = value == "true";
         setWavepump1Value(wavePump1Active);
         logPrintln("Updated: wavePump1Active");
 
-      } else if (path == "/wavePump2Active") {
+      } else if (path == "/actuators/wavePump2Active") {
         wavePump2Active = value == "true";
         setWavepump2Value(wavePump2Active);
         logPrintln("Updated: wavePump2Active");
 
-      } else if (path == "/lightActive") {
+      } else if (path == "/actuators/lightActive") {
         lightActive = value == "true";
         setLightValue(lightActive);
         logPrintln("Updated: lightActive");
 
       // --- Config Updates ---
-      } else if (path == "/lightOnHour") {
+      } else if (path == "/config/lightOnHour") {
         lightOnHour = atoi(value.c_str());
         logPrintf("Updated: lightOnHour = %d\n", lightOnHour);
 
-      } else if (path == "/lightOffHour") {
+      } else if (path == "/config/lightOffHour") {
         lightOffHour = atoi(value.c_str());
         logPrintf("Updated: lightOffHour = %d\n", lightOffHour);
       }
@@ -192,19 +191,19 @@ void processData(AsyncResult &result) {
 }
 
 void updateStatusToFirebaseRTDB(const String &lastUpdated) {
-  Database.set<number_t>(aClient, "/sensors/temperatureC", number_t(tempC, 2), processData, "setTemp");
-  Database.set<bool>(aClient, "/sensors/tankFilled", tankFilled, processData, "setTank");
-  Database.set<bool>(aClient, "/actuators/refillPumpActive", refillPumpActive, processData, "setRefillPump");
-  Database.set<bool>(aClient, "/actuators/wavePump1Active", wavePump1Active, processData, "setWave1");
-  Database.set<bool>(aClient, "/actuators/wavePump2Active", wavePump2Active, processData, "setWave2");
-  Database.set<bool>(aClient, "/actuators/lightActive", lightActive, processData, "setLight");
-  Database.set<int>(aClient, "/config/lightOnHour", lightOnHour, processData, "setOnHour");
-  Database.set<int>(aClient, "/config/lightOffHour", lightOffHour, processData, "setOffHour");
-  Database.set<String>(aClient, "/lastUpdated", lastUpdated, processData, "setLastUpdated");
+  Database.set<number_t>(aClient, "/realtime_data/sensors/temperatureC", number_t(tempC, 2), processData, "setTemp");
+  Database.set<bool>(aClient, "/realtime_data/sensors/tankFilled", tankFilled, processData, "setTank");
+  Database.set<bool>(aClient, "/realtime_data/actuators/refillPumpActive", refillPumpActive, processData, "setRefillPump");
+  Database.set<bool>(aClient, "/realtime_data/actuators/wavePump1Active", wavePump1Active, processData, "setWave1");
+  Database.set<bool>(aClient, "/realtime_data/actuators/wavePump2Active", wavePump2Active, processData, "setWave2");
+  Database.set<bool>(aClient, "/realtime_data/actuators/lightActive", lightActive, processData, "setLight");
+  Database.set<int>(aClient, "/realtime_data/config/lightOnHour", lightOnHour, processData, "setOnHour");
+  Database.set<int>(aClient, "/realtime_data/config/lightOffHour", lightOffHour, processData, "setOffHour");
+  Database.set<String>(aClient, "/realtime_data/lastUpdated", lastUpdated, processData, "setLastUpdated");
 }
 
 void updateRefillStatusToFirebaseRTDB(const String &lastUpdated) {
-  Database.set<bool>(aClient, "/sensors/tankFilled", tankFilled, processData, "setTankRefill");
-  Database.set<bool>(aClient, "/actuators/refillPumpActive", refillPumpActive, processData, "setRefillPumpRefill");
-  Database.set<String>(aClient, "/lastUpdated", lastUpdated, processData, "setLastUpdatedRefill");
+  Database.set<bool>(aClient, "/realtime_data/sensors/tankFilled", tankFilled, processData, "setTankRefill");
+  Database.set<bool>(aClient, "/realtime_data/actuators/refillPumpActive", refillPumpActive, processData, "setRefillPumpRefill");
+  Database.set<String>(aClient, "/realtime_data/lastUpdated", lastUpdated, processData, "setLastUpdatedRefill");
 }

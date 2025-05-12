@@ -31,9 +31,12 @@ void setupRoutes() {
     handleCORSPreflight(request);
   });
   server.on("/api/logs", HTTP_GET, [](AsyncWebServerRequest *request) {
+    
     File logFile = SPIFFS.open(LOG_FILE_PATH, FILE_READ);
     if (!logFile) {
-      request->send(500, "text/plain", "Failed to open log file.");
+      AsyncWebServerResponse *response = request->beginResponse(500, "text/plain", "Failed to open log file.");
+      sendCORSHeaders(request, response);
+      request->send(response);
       return;
     }
 
@@ -42,7 +45,9 @@ void setupRoutes() {
       logContent += (char)logFile.read();
     }
     logFile.close();
-    request->send(200, "text/plain", logContent);
+    AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", logContent);
+    sendCORSHeaders(request, response);
+    request->send(response);
   });
 
   // POST /api/restart
