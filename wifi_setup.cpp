@@ -71,7 +71,7 @@ void setupNetwork() {
       Serial.printf("Wi-Fi RSSI: %d dBm\n", WiFi.RSSI());
 
 
-      startRestOtaServer();
+      startWebServer();
 
       return;
     }

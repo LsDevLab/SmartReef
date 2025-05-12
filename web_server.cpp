@@ -8,15 +8,17 @@
 #include "webserial_logging.h"
 #include <FS.h>
 #include <SPIFFS.h>
-#include <ESPAsyncWebServer.h>
-#include <WiFi.h>
-#include "cert.h"
 
-// Create an instance of the server
-AsyncWebServer server(443);  // Using HTTPS on port 443
+WebServer server(8083);
 
 // Forward declaration of the task
 void webServerTask(void *parameter);
+
+void sendCORSHeaders() {
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  server.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+}
 
 int getDocValue(){
   if (!server.hasArg("plain")) {
@@ -34,6 +36,7 @@ int getDocValue(){
 
   return doc["value"];
 }
+
 
 // Helper function to handle actuator update
 void handleActuatorUpdate(bool &actuatorVar, uint8_t relayPin) {
@@ -79,23 +82,37 @@ void handleTuyaWavePump2Update() {
 void handleConfigUpdate(int &configVar) {
   int docValue = getDocValue();
   if(docValue == -1) return;
-  
+
   configVar = docValue;
 
   server.send(200, "application/json", "{\"message\":\"Config updated\"}");
 }
 
+void handleCORSPreflight() {
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.sendHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  server.sendHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  server.send(200);
+}
+
 void setupRoutes() {
-  // Status API
-  server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request){
+
+
+  server.on("/api/status", HTTP_GET, []() {
+    sendCORSHeaders();
+    // Dynamically return uptime in seconds
     unsigned long uptime = millis() / 1000;
     String response = "{\"status\":\"ok\",\"uptime\":" + String(uptime) + "}";
-    request->send(200, "application/json", response);
+    server.send(200, "application/json", response);
   });
 
-  // Actuators API
-  server.on("/api/actuators", HTTP_GET, [](AsyncWebServerRequest *request){
+
+ // GET /api/actuators
+  server.on("/api/actuators", HTTP_GET, []() {
+    sendCORSHeaders();
     lightActive = getLightValue();
+    //wavePump1Active = getWavepump1Value();
+    //wavePump2Active = getWavepump2Value();
     DynamicJsonDocument doc(256);
     doc["refillPumpActive"] = refillPumpActive;
     doc["wavePump1Active"] = wavePump1Active;
@@ -103,105 +120,145 @@ void setupRoutes() {
     doc["lightActive"] = lightActive;
     String response;
     serializeJson(doc, response);
-    request->send(200, "application/json", response);
+    server.send(200, "application/json", response);
   });
 
-  // Sensors API
-  server.on("/api/sensors", HTTP_GET, [](AsyncWebServerRequest *request){
+  // GET /api/sensors
+  server.on("/api/sensors", HTTP_GET, []() {
+    sendCORSHeaders();
     DynamicJsonDocument doc(256);
     doc["tankFilled"] = tankFilled;
     doc["temperatureC"] = tempC;
     String response;
     serializeJson(doc, response);
-    request->send(200, "application/json", response);
+    server.send(200, "application/json", response);
   });
 
-  // Config API
-  server.on("/api/config", HTTP_GET, [](AsyncWebServerRequest *request){
+    // GET /api/config
+  server.on("/api/config", HTTP_GET, []() {
+    sendCORSHeaders();
     DynamicJsonDocument doc(256);
     doc["lightOnHour"] = lightOnHour;
     doc["lightOffHour"] = lightOffHour;
     String response;
     serializeJson(doc, response);
-    request->send(200, "application/json", response);
+    server.send(200, "application/json", response);
   });
 
-  // Logs API
-  server.on("/api/logs", HTTP_GET, [](AsyncWebServerRequest *request){
+  // GET api/logs
+  server.on("/api/logs", HTTP_GET, []() {
+    sendCORSHeaders();
     File logFile = SPIFFS.open(LOG_FILE_PATH, FILE_READ);
     if (!logFile) {
-        request->send(500, "text/plain", "Failed to open log file.");
+        server.send(500, "text/plain", "Failed to open log file.");
         return;
     }
+    // Send log file content as response
     String logContent = "";
     while (logFile.available()) {
         logContent += (char)logFile.read();
     }
     logFile.close();
-    request->send(200, "text/plain", logContent);
+    server.send(200, "text/plain", logContent); // Send logs as plain text
   });
 
-  // Actuators POST APIs
-  server.on("/api/actuators/refillPump", HTTP_POST, [](AsyncWebServerRequest *request){
+
+  // POST /api/actuators/refillPumpActive
+  server.on("/api/actuators/refillPump", HTTP_OPTIONS, handleCORSPreflight);
+  server.on("/api/actuators/refillPump", HTTP_POST, []() {
+    sendCORSHeaders();
     handleActuatorUpdate(refillPumpActive, RELAY_FILL_PUMP);
   });
 
-  server.on("/api/actuators/wavePump1", HTTP_POST, [](AsyncWebServerRequest *request){
+  // POST /api/actuators/wavePump1Active
+  server.on("/api/actuators/wavePump1", HTTP_OPTIONS, handleCORSPreflight);
+  server.on("/api/actuators/wavePump1", HTTP_POST, []() {
+    sendCORSHeaders();
     handleTuyaWavePump1Update();
   });
 
-  server.on("/api/actuators/wavePump2", HTTP_POST, [](AsyncWebServerRequest *request){
+  // POST /api/actuators/wavePump2Active
+  server.on("/api/actuators/wavePump2", HTTP_OPTIONS, handleCORSPreflight);
+  server.on("/api/actuators/wavePump2", HTTP_POST, []() {
+    sendCORSHeaders();
     handleTuyaWavePump2Update();
   });
 
-  server.on("/api/actuators/light", HTTP_POST, [](AsyncWebServerRequest *request){
+  // POST /api/actuators/lightActive
+  server.on("/api/actuators/light", HTTP_OPTIONS, handleCORSPreflight);
+  server.on("/api/actuators/light", HTTP_POST, []() {
+    sendCORSHeaders();
     handleTapoLightUpdate();
   });
 
-  // Config Update APIs
-  server.on("/api/config/lightOnHour", HTTP_POST, [](AsyncWebServerRequest *request){
+
+  // POST /api/config/lightOnHour
+  server.on("/api/config/lightOnHour", HTTP_OPTIONS, handleCORSPreflight);
+  server.on("/api/config/lightOnHour", HTTP_POST, []() {
+    sendCORSHeaders();
     handleConfigUpdate(lightOnHour);
   });
 
-  server.on("/api/config/lightOffHour", HTTP_POST, [](AsyncWebServerRequest *request){
-    handleConfigUpdate(lightOffHour);
+  // POST /api/config/lightOffHour
+  server.on("/api/config/lightOffHour", HTTP_OPTIONS, handleCORSPreflight);
+  server.on("/api/config/lightOffHour", HTTP_POST, []() {
+    sendCORSHeaders();
+     handleConfigUpdate(lightOffHour);
   });
 
-  // Restart API
-  server.on("/api/restart", HTTP_POST, [](AsyncWebServerRequest *request){
-    request->send(200, "application/json", "{\"message\":\"Restarting\"}");
+
+  // POST /api/restart
+  server.on("/api/restart", HTTP_OPTIONS, handleCORSPreflight);
+  server.on("/api/restart", HTTP_POST, []() {
+    sendCORSHeaders();
+    server.send(200, "application/json", "{\"message\":\"Restarting\"}");
     delay(100);
     ESP.restart();
   });
 
-  // Reset Preferences API
-  server.on("/api/reset", HTTP_POST, [](AsyncWebServerRequest *request){
+  // POST /api/resetprefs
+  server.on("/api/rese", HTTP_OPTIONS, handleCORSPreflight);
+  server.on("/api/reset", HTTP_POST, []() {
+    sendCORSHeaders();
     Preferences prefs;
-    prefs.begin("wifiConfig", false);
+    prefs.begin("wifiConfig", false); // Replace "wificonfig" with your namespace
     prefs.clear();
     prefs.end();
-    request->send(200, "application/json", "{\"message\":\"Preferences cleared\"}");
+    server.send(200, "application/json", "{\"message\":\"Preferences cleared\"}");
     delay(100);
     ESP.restart();
   });
 
-  // Elegant OTA
+  // ElegantOTA
   ElegantOTA.begin(&server);
   ElegantOTA.setAuth(ELEGANT_OTA_USERNAME, ELEGANT_OTA_PASSWORD);
 
-  // Not found handler
-  server.onNotFound([](AsyncWebServerRequest *request){
-    request->send(404, "text/plain", "Not found");
+  server.onNotFound([]() {
+    sendCORSHeaders();
+    server.send(404, "text/plain", "Not found");
   });
 }
 
 void startWebServer() {
-  // Set the certificate and key for HTTPS
-  server.getServer().setRSACert(server_cert, server_key);
-  
-  setupRoutes();  // Setup all the routes
+  setupRoutes();
   server.begin();
   logPrintln("Webserver initialized.");
-  
-  // No need for webServerTask with AsyncWebServer
+
+  // Create FreeRTOS task for handling HTTP
+  xTaskCreatePinnedToCore(
+    webServerTask,      // Task function
+    "WebServerTask",     // Name
+    4096,                // Stack size
+    NULL,                // Parameters
+    1,                   // Priority
+    NULL,                // Task handle
+    0                    // Core (0 is usually good for WiFi+HTTP)
+  );
+}
+
+void webServerTask(void *parameter) {
+  for (;;) {
+    server.handleClient();
+    vTaskDelay(1); // small delay to allow other tasks (important!)
+  }
 }

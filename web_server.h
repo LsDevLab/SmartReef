@@ -2,9 +2,9 @@
 #define WEB_SERVER_H
 
 #include <WiFi.h>
-#include <ESPAsyncWebServer.h>
+#include <WebServer.h>
 
-extern AsyncWebServer server;
+extern WebServer server;
 
 void startWebServer();
 
