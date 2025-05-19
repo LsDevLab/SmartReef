@@ -34,25 +34,34 @@ String makeSign(const String& clientId, uint64_t timestamp, const String& client
         hex += String(hmacResult[i], HEX);
     }
 
-    hex.toLowerCase(); // Optional, depends on API requirement
+    hex.toUpperCase(); // Tuya requires uppercase hex
     return hex;
 }
 
 
 
+
 void tuyaAuthenticate() {
-  uint64_t tstamp = millis();
+  uint64_t tstamp = time(nullptr) * 1000; // Current epoch time in milliseconds
   HTTPClient http;
+  logPrintln("Tuya authenticating...");
   http.begin("https://openapi.tuyacn.com/v1.0/token?grant_type=1");
   http.addHeader("client_id", TUYA_CLIENT_ID);
-  http.addHeader("sign_method","HMAC-SHA256");
-  http.addHeader("sign", makeSign(TUYA_CLIENT_ID, tstamp, TUYA_CLIENT_SECRET, tuyaToken));
+  http.addHeader("sign_method", "HMAC-SHA256");
+  http.addHeader("t", String(tstamp));
+  http.addHeader("sign", makeSign(TUYA_CLIENT_ID, tstamp, TUYA_CLIENT_SECRET));
   int code = http.POST("");
-  if (code==200) {
+  if (code == 200) {
     DynamicJsonDocument doc(512);
     deserializeJson(doc, http.getString());
     tuyaToken = doc["result"]["access_token"].as<String>();
-    tuyaTokenExpires = millis() + doc["result"]["expire_time"].as<uint32_t>()*1000;
+    logPrintln(tuyaToken);
+    tuyaTokenExpires = millis() + doc["result"]["expire_time"].as<uint32_t>() * 1000;
+    
+    logPrintln(doc["result"]["expire_time"].as<uint32_t>());
+    logPrintln("Tuya auth ok.");
+  } else {
+    logPrintln("Tuya auth err.");
   }
   http.end();
 }
@@ -61,6 +70,8 @@ void tuyaSetSwitch(const char* deviceId, bool on) {
   if (millis() > tuyaTokenExpires) tuyaAuthenticate();
 
   HTTPClient http;
+  
+  logPrintln("Tuya setting switch.");
   String url = String("https://openapi.tuyacn.com/v1.0/devices/") + deviceId + "/commands";
   http.begin(url);
   http.addHeader("Authorization", tuyaToken);
@@ -82,12 +93,17 @@ bool tuyaGetSwitch(const char* deviceId){
     if (millis() > tuyaTokenExpires) tuyaAuthenticate();
 
     HTTPClient http;
+              logPrintln("Tuya getting switch...");
+
     String url = String("https://openapi.tuyacn.com/v1.0/devices/") + deviceId + "/status";
     http.begin(url);
     http.addHeader("Authorization", tuyaToken);
 
+    
+
     int httpCode = http.GET();
     if (httpCode == 200) {
+          logPrintln("Tuya get switch ok.");
         String payload = http.getString();
         DynamicJsonDocument doc(1024);
         DeserializationError error = deserializeJson(doc, payload);

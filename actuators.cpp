@@ -29,7 +29,7 @@ void setupActuators() {
   digitalWrite(RELAY_FILL_PUMP, !refillPumpActive);
   tapoLight.begin(TAPO_LIGHT_IP, TAPO_USERNAME, TAPO_PASSWORD);
   lightActive = getLightValue();
-  //wavePump1Active = getWavepump1Value();
+  wavePump1Active = getWavepump1Value();
   //wavePump2Active = getWavepump2Value();
   logPrintln("Refill pump control initialized.");
   delay(2000);
@@ -50,7 +50,7 @@ void setControlVariables() {
     wavePump2Active = false;
     lightActive = true;
     setLightValue(lightActive);
-    //setWavepump1Value(wavePump1Active);
+    setWavepump1Value(wavePump1Active);
     //setWavepump2Value(wavePump2Active);
     return;
   }
@@ -64,7 +64,7 @@ void setControlVariables() {
 
   // ** now call cloud‑APIs **
   setLightValue(lightActive);
-  //setWavepump1Value(wavePump1Active);
+  setWavepump1Value(wavePump1Active);
   //setWavepump2Value(wavePump2Active);
 }
 
