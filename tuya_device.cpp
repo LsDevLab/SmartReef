@@ -6,41 +6,55 @@
 #include <ArduinoJson.h>
 #include <mbedtls/md.h>
 #include "webserial_logging.h"
+#include <esp_heap_caps.h>
 
 static String tuyaToken;
 static unsigned long tuyaTokenExpires = 0;
 static String tapoToken;
+static HTTPClient http;
+static bool httpClientBusy = false;
+
+
+void logHeapStats() {
+  logPrint("Free heap: ");
+  logPrintln(String(ESP.getFreeHeap()) + " bytes");
+
+  logPrint("Minimum ever free heap: ");
+  logPrintln(String(ESP.getMinFreeHeap()) + " bytes");
+
+  logPrint("Free internal heap: ");
+  logPrintln(String(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)) + " bytes");
+}
 
 String makeSign(const String& clientId, const String& secret, const String& meth, const String& urlPath, uint64_t timestamp, const String& nonce = "", const String& body = "", const String& accessToken = "") {
-    // SHA256 hash of the body (empty string = constant hash)
     unsigned char shaResult[32];
     const mbedtls_md_info_t* shaMd = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
     mbedtls_md(shaMd, (const unsigned char*)body.c_str(), body.length(), shaResult);
 
     String bodyHash;
+    bodyHash.reserve(65);
     for (int i = 0; i < 32; ++i) {
         if (shaResult[i] < 16) bodyHash += "0";
         bodyHash += String(shaResult[i], HEX);
     }
-
-    // Convert to lowercase
     bodyHash.toLowerCase();
 
-    // Construct the stringToSign
-    String stringToSign = meth + "\n" + bodyHash + "\n\n" + urlPath;
+    String stringToSign;
+    stringToSign.reserve(256);
+    stringToSign = meth + "\n" + bodyHash + "\n\n" + urlPath;
 
-    // Construct final sign input
-    String input = clientId + accessToken + String(timestamp) + nonce + stringToSign;
+    String input;
+    input.reserve(256);
+    input = clientId + accessToken + String(timestamp) + nonce + stringToSign;
 
-    // HMAC-SHA256
     unsigned char hmacResult[32];
     mbedtls_md_hmac(shaMd,
         (const unsigned char*)secret.c_str(), secret.length(),
         (const unsigned char*)input.c_str(), input.length(),
         hmacResult);
 
-    // Convert to uppercase hex string
     String hex;
+    hex.reserve(65);
     for (int i = 0; i < 32; i++) {
         if (hmacResult[i] < 16) hex += "0";
         hex += String(hmacResult[i], HEX);
@@ -50,37 +64,38 @@ String makeSign(const String& clientId, const String& secret, const String& meth
     return hex;
 }
 
-
-
-
-
 void tuyaAuthenticate() {
-  uint64_t tstamp = time(nullptr) * 1000; // Current epoch time in milliseconds
-  HTTPClient http;
-  logPrintln("Tuya authenticating...");
+  logPrintln("Before Tuya: heap usage");
+  logHeapStats();
+
+if (httpClientBusy) {
+  logPrintln("HTTPClient is busy, skipping.");
+  return;
+}
+httpClientBusy = true;
   
+  uint64_t tstamp = time(nullptr) * 1000;
+  logPrintln("Tuya authenticating...");
+
   http.begin("https://openapi.tuyaeu.com/v1.0/token?grant_type=1");
   http.addHeader("client_id", TUYA_CLIENT_ID);
   http.addHeader("sign_method", "HMAC-SHA256");
   http.addHeader("t", String(tstamp));
   http.addHeader("sign", makeSign(TUYA_CLIENT_ID, TUYA_CLIENT_SECRET, "GET", "/v1.0/token?grant_type=1", tstamp));
-  
+
   int code = http.GET();
   logPrint("HTTP Code: "); logPrintln(code);
 
-  String response = http.getString();  // 🧠 Read only once
+  String response = http.getString();
   logPrint("Response: "); logPrintln(response);
 
   if (code == 200) {
-    DynamicJsonDocument doc(1024); // Increase size if needed
+    DynamicJsonDocument doc(1024);
     DeserializationError error = deserializeJson(doc, response);
 
     if (!error) {
       tuyaToken = doc["result"]["access_token"].as<String>();
       tuyaTokenExpires = millis() + doc["result"]["expire_time"].as<uint32_t>() * 1000;
-
-      logPrintln(tuyaToken);
-      logPrintln(doc["result"]["expire_time"].as<uint32_t>());
       logPrintln("Tuya auth ok.");
     } else {
       logPrintln("JSON parse error: " + String(error.c_str()));
@@ -88,20 +103,42 @@ void tuyaAuthenticate() {
   } else {
     logPrintln("Tuya auth err.");
   }
-
   http.end();
+
+httpClientBusy = false;
+
+  
+  logPrintln("After Tuya: heap usage");
+  logHeapStats();
 }
 
-
 void tuyaSetSwitch(const char* deviceId, bool on) {
+
+if (httpClientBusy) {
+  logPrintln("HTTPClient is busy, skipping.");
+  return;
+}
+httpClientBusy = true;
+  
   if (millis() > tuyaTokenExpires) tuyaAuthenticate();
 
-  uint64_t tstamp = time(nullptr) * 1000;
-  String path = String("/v1.0/devices/") + deviceId + "/commands";
-  String url = "https://openapi.tuyaeu.com" + path;
+  logPrintln("Before Tuya setSwitch: heap usage");
+  logHeapStats();
 
-  // Create request body first
-  DynamicJsonDocument cmd(128);
+  uint64_t tstamp = time(nullptr) * 1000;
+
+  String path;
+  path.reserve(64);
+  path = "/v1.0/devices/";
+  path += deviceId;
+  path += "/commands";
+
+  String url;
+  url.reserve(96);
+  url = "https://openapi.tuyaeu.com";
+  url += path;
+
+  DynamicJsonDocument cmd(512);
   JsonArray arr = cmd.createNestedArray("commands");
   JsonObject o = arr.createNestedObject();
   o["code"]  = "switch_1";
@@ -110,10 +147,8 @@ void tuyaSetSwitch(const char* deviceId, bool on) {
   String body;
   serializeJson(cmd, body);
 
-  // Sign the request using method, path, timestamp, token, and body
   String sign = makeSign(TUYA_CLIENT_ID, TUYA_CLIENT_SECRET, "POST", path, tstamp, "", body, tuyaToken);
 
-  HTTPClient http;
   logPrintln("Tuya setting switch...");
   http.begin(url);
   http.addHeader("client_id", TUYA_CLIENT_ID);
@@ -126,20 +161,38 @@ void tuyaSetSwitch(const char* deviceId, bool on) {
   int code = http.POST(body);
   logPrint("POST Code: "); logPrintln(code);
   logPrint("Response: "); logPrintln(http.getString());
-
   http.end();
+
+httpClientBusy = false;
+
+  logPrintln("After Tuya setSwitch: heap usage");
+  logHeapStats();
 }
 
 bool tuyaGetSwitch(const char* deviceId) {
   if (millis() > tuyaTokenExpires) tuyaAuthenticate();
 
+  if (httpClientBusy) {
+  logPrintln("HTTPClient is busy, skipping.");
+  return false;
+}
+httpClientBusy = true;
+
   uint64_t tstamp = time(nullptr) * 1000;
-  String path = String("/v1.0/devices/") + deviceId + "/status";
-  String url = "https://openapi.tuyaeu.com" + path;
+
+  String path;
+  path.reserve(64);
+  path = "/v1.0/devices/";
+  path += deviceId;
+  path += "/status";
+
+  String url;
+  url.reserve(96);
+  url = "https://openapi.tuyaeu.com";
+  url += path;
 
   String sign = makeSign(TUYA_CLIENT_ID, TUYA_CLIENT_SECRET, "GET", path, tstamp, "", "", tuyaToken);
 
-  HTTPClient http;
   logPrintln("Tuya getting switch...");
   http.begin(url);
 
@@ -164,7 +217,8 @@ bool tuyaGetSwitch(const char* deviceId) {
       for (JsonObject status : statusArray) {
         if (status["code"] == "switch_1") {
           http.end();
-          return status["value"]; // true or false
+          httpClientBusy = false;
+          return status["value"];
         }
       }
     } else {
@@ -174,7 +228,8 @@ bool tuyaGetSwitch(const char* deviceId) {
     logPrint("Failed to GET status. HTTP code: ");
     logPrintln(httpCode);
   }
-
   http.end();
+  httpClientBusy = false;
+
   return false;
 }

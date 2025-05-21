@@ -157,7 +157,7 @@ void processData(AsyncResult &result) {
 
       } else if (path == "/actuators/wavePump2Active") {
         wavePump2Active = value == "true";
-        setWavepump2Value(wavePump2Active);
+        //setWavepump2Value(wavePump2Active);
         logPrintln("Updated: wavePump2Active");
 
       } else if (path == "/actuators/lightActive") {

@@ -1,3 +1,6 @@
+//#define CORE_DEBUG_LEVEL 4
+
+
 #include "sensors.h"
 #include "actuators.h"
 #include "status.h"
@@ -14,6 +17,7 @@
 
 void setup() {
   Serial.begin(115200);
+  //Serial.setDebugOutput(true);  // Required for internal log_x macros to show output
   delay(1000); // Give time to initialize serial
 
   if (!SPIFFS.begin(true)) {
