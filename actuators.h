@@ -21,7 +21,7 @@ void setLightValue(bool on);
 bool getLightValue();
 void setWavepump1Value(bool on);
 bool getWavepump1Value();
-void setWavepump2Value(bool on);
-bool getWavepump2Value();
+//void setWavepump2Value(bool on);
+//bool getWavepump2Value();
 
 #endif // ACTUATORS_H

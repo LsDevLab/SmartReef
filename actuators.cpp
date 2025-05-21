@@ -6,7 +6,7 @@
 #include "configuration.h"
 #define TAPO_DEBUG_MODE // Comment this line to disable debug messages
 #include "tapo_device.h"
-#include "tuya_device.h"
+//#include "tuya_device.h"
 #include "webserial_logging.h"
 
 
@@ -23,11 +23,13 @@ int lightOffHour = 23;
 unsigned long pumpLastFilled;
 
 TapoDevice tapoLight;
+TapoDevice tapoWave1;
 
 void setupActuators() {
   pinMode(RELAY_FILL_PUMP, OUTPUT);
   digitalWrite(RELAY_FILL_PUMP, !refillPumpActive);
   tapoLight.begin(TAPO_LIGHT_IP, TAPO_USERNAME, TAPO_PASSWORD);
+  tapoWave1.begin(TAPO_WAVE1_IP, TAPO_USERNAME, TAPO_PASSWORD);
   lightActive = getLightValue();
   wavePump1Active = getWavepump1Value();
   //wavePump2Active = getWavepump2Value();
@@ -114,17 +116,21 @@ bool getLightValue(){
 }
 
 void setWavepump1Value(bool on){
-  tuyaSetSwitch(TUYA_WAVEPUMP1_ID, wavePump1Active);
+  if(on){
+    tapoWave1.on();
+  } else {
+    tapoWave1.off();
+  }
 }
 
 bool getWavepump1Value(){
-    return tuyaGetSwitch(TUYA_WAVEPUMP1_ID);
+    return tapoWave1.getDeviceOn();
 }
 
-void setWavepump2Value(bool on){
-  tuyaSetSwitch(TUYA_WAVEPUMP2_ID, wavePump2Active);
-}
-
-bool getWavepump2Value(){
-   return tuyaGetSwitch(TUYA_WAVEPUMP2_ID);
-}
+//void setWavepump2Value(bool on){
+//  tuyaSetSwitch(TUYA_WAVEPUMP2_ID, wavePump2Active);
+//}
+//
+//bool getWavepump2Value(){
+//   return tuyaGetSwitch(TUYA_WAVEPUMP2_ID);
+//}
