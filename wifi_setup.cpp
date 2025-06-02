@@ -7,7 +7,7 @@
 #include "configuration.h"
 #include "webserial_logging.h"
 
-Preferences prefs;
+
 WebServer configServer(80);
 
 bool shouldSaveConfig = false;

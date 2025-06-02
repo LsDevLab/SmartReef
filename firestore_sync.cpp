@@ -167,12 +167,17 @@ void processData(AsyncResult &result) {
 
       // --- Config Updates ---
       } else if (path == "/config/lightOnHour") {
+        prefs.begin(CONFIGS_PREFS_NAMESPACE, false);
         lightOnHour = atoi(value.c_str());
         logPrintf("Updated: lightOnHour = %d\n", lightOnHour);
-
+        prefs.putInt(CONFIG_LIGHT_ON_KEY, lightOnHour);
+        prefs.end();
       } else if (path == "/config/lightOffHour") {
+        prefs.begin(CONFIGS_PREFS_NAMESPACE, false);
         lightOffHour = atoi(value.c_str());
         logPrintf("Updated: lightOffHour = %d\n", lightOffHour);
+        prefs.putInt(CONFIG_LIGHT_OFF_KEY, lightOffHour);
+        prefs.end();
       }
 
     } else {

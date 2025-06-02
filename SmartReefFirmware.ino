@@ -15,6 +15,8 @@
 #include <FS.h>
 #include <SPIFFS.h>
 
+Preferences prefs;
+
 void setup() {
   Serial.begin(115200);
   //Serial.setDebugOutput(true);  // Required for internal log_x macros to show output

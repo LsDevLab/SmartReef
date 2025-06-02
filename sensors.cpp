@@ -26,5 +26,5 @@ void readTemp() {
 }
 
 void readTankFilledSensor() {
-  tankFilled = digitalRead(WATER_LEVEL_SENSOR_PIN) == HIGH;
+  tankFilled = digitalRead(WATER_LEVEL_SENSOR_PIN) == LOW;
 }

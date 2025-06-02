@@ -8,6 +8,7 @@
 #include "actuators.h"
 #include "configuration.h"
 #include "webserial_logging.h"
+#include <Preferences.h>
 
 extern FirebaseApp app;
 

@@ -9,7 +9,6 @@
 //#include "tuya_device.h"
 #include "webserial_logging.h"
 
-
 // your existing flags
 bool wavePump1Active = true;
 bool wavePump2Active = true;
@@ -32,15 +31,24 @@ void setupActuators() {
   tapoWave1.begin(TAPO_WAVE1_IP, TAPO_USERNAME, TAPO_PASSWORD);
   lightActive = getLightValue();
   wavePump1Active = getWavepump1Value();
+  setLightValue(lightActive);
+  setWavepump1Value(wavePump1Active);
   //wavePump2Active = getWavepump2Value();
-  logPrintln("Refill pump control initialized.");
+  logPrintln("Actuators initialized.");
+
+  prefs.begin(CONFIGS_PREFS_NAMESPACE, false);
+  lightOnHour = prefs.getInt(CONFIG_LIGHT_ON_KEY, 17);
+  lightOffHour = prefs.getInt(CONFIG_LIGHT_OFF_KEY, 23);
+  prefs.end();
+  
   delay(2000);
+  
 }
 
 // stub: call this each loop
 void controlActuators() {
   setControlVariables();
-  //refillTankSubcontrol();
+  refillTankSubcontrol();
 }
 
 void setControlVariables() {
@@ -75,15 +83,23 @@ void refillTankSubcontrol() {
   bool timeout = false;
 
   readTankFilledSensor();
+
+  if(tankFilled){
+    return;
+  } else {
+    logPrintln("Tank NOT fully filled");
+  }
+
   if(pumpLastFilled && millis() - pumpLastFilled < 24*60*60000){
-      logPrintln("Filled less than 1 day ago");
-      return;
-    }
-  while (!timeout && !tankFilled) { // max 1 a day
+    logPrintln("Filled less than 1 day ago");
+    return;
+  }
+  //while (!timeout && !tankFilled) { // max 1 a day
+  while (!timeout) { // max 1 a day
     refillPumpActive = true;
     logPrintln("Refill Pump: ON");
-    // Keep pump on for up to 10 seconds
-    if (millis() - pumpStart <= 10000) {
+    // Keep pump on for up to TANK_WATER_FILL_TIME_TO
+    if (millis() - pumpStart <= TANK_WATER_FILL_TIME_TO) {
       pumpLastFilled = millis();
       digitalWrite(RELAY_FILL_PUMP, LOW);  // relay active low
       ledStatus.setWaterRefilling();
@@ -92,7 +108,7 @@ void refillTankSubcontrol() {
     } else {
       ledStatus.off();
       ledStatus.update();
-      logPrintln("Refill Pump TIMEOUT");
+      logPrintln("Refill Pump TIMEMOUT");
       timeout = true;
     }
     readTankFilledSensor();
@@ -100,7 +116,7 @@ void refillTankSubcontrol() {
   }
   digitalWrite(RELAY_FILL_PUMP, HIGH);
   refillPumpActive = false;
-  logPrintln("Refill Pump: OFF (tank filled)");
+  logPrintln("Refill Pump: OFF");
 }
 
 void setLightValue(bool on) {
