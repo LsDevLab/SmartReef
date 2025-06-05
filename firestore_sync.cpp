@@ -112,7 +112,6 @@ void uploadRefillWaterStatusToFirestore() {
 
   Document<Values::Value> doc;
   doc.add("timestamp", Values::Value(Values::IntegerValue(tsNum)));
-  doc.add("tankFilled", Values::Value(Values::BooleanValue(tankFilled)));
   doc.add("refillPump", Values::Value(Values::BooleanValue(refillPumpActive)));
 
   String fullPath = "status/" + tsStr;
@@ -208,7 +207,6 @@ void updateStatusToFirebaseRTDB(const String &lastUpdated) {
 }
 
 void updateRefillStatusToFirebaseRTDB(const String &lastUpdated) {
-  Database.set<bool>(aClient, "/realtime_data/sensors/tankFilled", tankFilled, processData, "setTankRefill");
   Database.set<bool>(aClient, "/realtime_data/actuators/refillPumpActive", refillPumpActive, processData, "setRefillPumpRefill");
   Database.set<String>(aClient, "/realtime_data/lastUpdated", lastUpdated, processData, "setLastUpdatedRefill");
 }

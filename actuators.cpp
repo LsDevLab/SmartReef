@@ -82,22 +82,22 @@ void refillTankSubcontrol() {
   unsigned long pumpStart = millis();
   bool timeout = false;
 
-  readTankFilledSensor();
-
   if(tankFilled){
     return;
   } else {
     logPrintln("Tank NOT fully filled");
   }
 
-  if(pumpLastFilled && millis() - pumpLastFilled < 24*60*60000){
+  if(pumpLastFilled && millis() - pumpLastFilled < 12*60*60000){
     logPrintln("Filled less than 1 day ago");
     return;
   }
-  //while (!timeout && !tankFilled) { // max 1 a day
-  while (!timeout) { // max 1 a day
-    refillPumpActive = true;
-    logPrintln("Refill Pump: ON");
+
+  refillPumpActive = true;
+  logPrintln("Refill Pump: ON");
+  uploadRefillWaterStatusToFirestore();
+  
+  while (!timeout) { 
     // Keep pump on for up to TANK_WATER_FILL_TIME_TO
     if (millis() - pumpStart <= TANK_WATER_FILL_TIME_TO) {
       pumpLastFilled = millis();
@@ -111,12 +111,12 @@ void refillTankSubcontrol() {
       logPrintln("Refill Pump TIMEMOUT");
       timeout = true;
     }
-    readTankFilledSensor();
-    //uploadRefillWaterStatusToFirestore(); too slow
   }
   digitalWrite(RELAY_FILL_PUMP, HIGH);
   refillPumpActive = false;
   logPrintln("Refill Pump: OFF");
+
+  uploadRefillWaterStatusToFirestore();
 }
 
 void setLightValue(bool on) {
