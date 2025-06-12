@@ -88,8 +88,8 @@ void refillTankSubcontrol() {
     logPrintln("Tank NOT fully filled");
   }
 
-  if(pumpLastFilled && millis() - pumpLastFilled < 12*60*60000){
-    logPrintln("Filled less than 1 day ago");
+  if(pumpLastFilled && millis() - pumpLastFilled < TANK_WATER_FILL_TIME_WINDOW){
+    logPrintln("Filled less than 12h ago");
     return;
   }
 
