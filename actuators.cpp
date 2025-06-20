@@ -10,10 +10,12 @@
 #include "webserial_logging.h"
 
 // your existing flags
-bool wavePump1Active = true;
+bool fanActive = true;
 bool wavePump2Active = true;
 bool lightActive    = true;
 bool refillPumpActive = false;
+
+bool forceModeActive = false;
 
 // light schedule
 int lightOnHour  = 17;
@@ -22,17 +24,17 @@ int lightOffHour = 23;
 unsigned long pumpLastFilled;
 
 TapoDevice tapoLight;
-TapoDevice tapoWave1;
+TapoDevice tapoFan;
 
 void setupActuators() {
   pinMode(RELAY_FILL_PUMP, OUTPUT);
   digitalWrite(RELAY_FILL_PUMP, !refillPumpActive);
   tapoLight.begin(TAPO_LIGHT_IP, TAPO_USERNAME, TAPO_PASSWORD);
-  tapoWave1.begin(TAPO_WAVE1_IP, TAPO_USERNAME, TAPO_PASSWORD);
+  tapoFan.begin(TAPO_FAN_IP, TAPO_USERNAME, TAPO_PASSWORD);
   lightActive = getLightValue();
-  wavePump1Active = getWavepump1Value();
+  fanActive = getFanValue();
   setLightValue(lightActive);
-  setWavepump1Value(wavePump1Active);
+  setFanValue(fanActive);
   //wavePump2Active = getWavepump2Value();
   logPrintln("Actuators initialized.");
 
@@ -55,32 +57,36 @@ void setControlVariables() {
 
   struct tm timeinfo;
   if (WiFi.status() != WL_CONNECTED || !getLocalTime(&timeinfo)) {
-    logPrintln("No internet or time, turning on lights, and wavepump1");
-    wavePump1Active = true;
+    logPrintln("No internet or time, turning on lights, and fan");
+    fanActive = true;
     wavePump2Active = false;
     lightActive = true;
     setLightValue(lightActive);
-    setWavepump1Value(wavePump1Active);
+    setFanValue(fanActive);
     //setWavepump2Value(wavePump2Active);
     return;
   }
 
-  // alternate wave pumps
-  //wavePump1Active = true; //(timeinfo.tm_hour % 2 == 0);
-  wavePump2Active = !wavePump1Active;
-
-  // light schedule
-  lightActive = (timeinfo.tm_hour >= lightOnHour && timeinfo.tm_hour < lightOffHour);
+  if(!forceModeActive){
+    // light schedule
+    lightActive = (timeinfo.tm_hour >= lightOnHour && timeinfo.tm_hour < lightOffHour);
+  } else {
+    logPrintln("Force mode active: skipping set control variables");
+  }
 
   // ** now call cloud‑APIs **
   setLightValue(lightActive);
-  setWavepump1Value(wavePump1Active);
+  setFanValue(fanActive);
   //setWavepump2Value(wavePump2Active);
 }
 
 void refillTankSubcontrol() {
   unsigned long pumpStart = millis();
   bool timeout = false;
+
+  if(forceModeActive) {
+    logPrintln("Force mode active: skipping refill tank");
+  }
 
   if(tankFilled){
     return;
@@ -131,16 +137,16 @@ bool getLightValue(){
     return tapoLight.getDeviceOn();
 }
 
-void setWavepump1Value(bool on){
+void setFanValue(bool on){
   if(on){
-    tapoWave1.on();
+    tapoFan.on();
   } else {
-    tapoWave1.off();
+    tapoFan.off();
   }
 }
 
-bool getWavepump1Value(){
-    return tapoWave1.getDeviceOn();
+bool getFanValue(){
+    return tapoFan.getDeviceOn();
 }
 
 //void setWavepump2Value(bool on){

@@ -81,7 +81,7 @@ void uploadStatusToFirestore() {
   doc.add("timestamp", Values::Value(Values::IntegerValue(tsNum)));
   doc.add("tankFilled", Values::Value(Values::BooleanValue(tankFilled)));
   doc.add("tempC", Values::Value(Values::DoubleValue(number_t(tempC, 2))));
-  doc.add("wavePump1", Values::Value(Values::BooleanValue(wavePump1Active)));
+  doc.add("fan", Values::Value(Values::BooleanValue(fanActive)));
   doc.add("wavePump2", Values::Value(Values::BooleanValue(wavePump2Active)));
   doc.add("light", Values::Value(Values::BooleanValue(lightActive)));
   doc.add("refillPump", Values::Value(Values::BooleanValue(refillPumpActive)));
@@ -144,15 +144,23 @@ void processData(AsyncResult &result) {
                 r.event().c_str(), path.c_str(), value.c_str());
 
       // --- Actuator Updates ---
-      if (path == "/actuators/refillPumpActive") {
+
+      if (path == "/actuators/forceModeActive") {
+        forceModeActive = value == "true";
+        setLightValue(lightActive);
+        setFanValue(fanActive);
+        digitalWrite(RELAY_FILL_PUMP, refillPumpActive ? LOW : HIGH);
+        logPrintln("Updated: forceMode");
+      
+      } else if (path == "/actuators/refillPumpActive") {
         refillPumpActive = value == "true";
         digitalWrite(RELAY_FILL_PUMP, refillPumpActive ? LOW : HIGH);
         logPrintln("Updated: refillPumpActive");
 
-      } else if (path == "/actuators/wavePump1Active") {
-        wavePump1Active = value == "true";
-        setWavepump1Value(wavePump1Active);
-        logPrintln("Updated: wavePump1Active");
+      } else if (path == "/actuators/fanActive") {
+        fanActive = value == "true";
+        setFanValue(fanActive);
+        logPrintln("Updated: fanActive");
 
       } else if (path == "/actuators/wavePump2Active") {
         wavePump2Active = value == "true";
@@ -198,7 +206,7 @@ void updateStatusToFirebaseRTDB(const String &lastUpdated) {
   Database.set<number_t>(aClient, "/realtime_data/sensors/temperatureC", number_t(tempC, 2), processData, "setTemp");
   Database.set<bool>(aClient, "/realtime_data/sensors/tankFilled", tankFilled, processData, "setTank");
   Database.set<bool>(aClient, "/realtime_data/actuators/refillPumpActive", refillPumpActive, processData, "setRefillPump");
-  Database.set<bool>(aClient, "/realtime_data/actuators/wavePump1Active", wavePump1Active, processData, "setWave1");
+  Database.set<bool>(aClient, "/realtime_data/actuators/fanActive", fanActive, processData, "setFan");
   Database.set<bool>(aClient, "/realtime_data/actuators/wavePump2Active", wavePump2Active, processData, "setWave2");
   Database.set<bool>(aClient, "/realtime_data/actuators/lightActive", lightActive, processData, "setLight");
   Database.set<int>(aClient, "/realtime_data/config/lightOnHour", lightOnHour, processData, "setOnHour");

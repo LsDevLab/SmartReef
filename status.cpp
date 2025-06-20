@@ -27,7 +27,7 @@ void printStatus() {
 
   // Actuator States
   logPrintln("------------------------- Actuators -----------------------");
-  logPrint("Wave Pump 1: "); logPrintln(wavePump1Active ? "ON" : "OFF");
+  logPrint("Fan: "); logPrintln(fanActive ? "ON" : "OFF");
   logPrint("Wave Pump 2: "); logPrintln(wavePump2Active ? "ON" : "OFF");
   logPrint("Light: "); logPrintln(lightActive ? "ON" : "OFF");
   logPrint("Refill Pump: "); logPrintln(refillPumpActive ? "ON" : "OFF");
