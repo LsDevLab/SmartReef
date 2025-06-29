@@ -185,6 +185,14 @@ void processData(AsyncResult &result) {
         logPrintf("Updated: lightOffHour = %d\n", lightOffHour);
         prefs.putInt(CONFIG_LIGHT_OFF_KEY, lightOffHour);
         prefs.end();
+      } else if (path == "/actuators/targetFanTemp") {
+        prefs.begin(CONFIGS_PREFS_NAMESPACE, false);
+        targetFanTemp = value.toFloat();
+        logPrintf("Updated: targetFanTemp = %f\n", targetFanTemp);
+        prefs.putInt(CONFIG_TAGET_FAN_TEMP_KEY, lightOffHour);
+        prefs.end();
+        logPrintln("Updated: targetFanTemp");
+
       }
 
     } else {

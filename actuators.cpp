@@ -11,6 +11,8 @@
 
 // your existing flags
 bool fanActive = true;
+float targetFanTemp = 24;
+
 bool wavePump2Active = true;
 bool lightActive    = true;
 bool refillPumpActive = false;
@@ -70,6 +72,18 @@ void setControlVariables() {
   if(!forceModeActive){
     // light schedule
     lightActive = (timeinfo.tm_hour >= lightOnHour && timeinfo.tm_hour < lightOffHour);
+        logPrintln("targetFanTemp");
+        logPrintln((targetFanTemp - 0.1));
+        logPrintln((targetFanTemp + 0.1));
+        logPrintln(tempC);
+        logPrintln(tempC <= (targetFanTemp - 0.1));
+
+    if(tempC <= (targetFanTemp - 0.1)){
+      fanActive = false;
+    }
+    if(tempC >= (targetFanTemp + 0.1)){
+      fanActive = true;
+    }
   } else {
     logPrintln("Force mode active: skipping set control variables");
   }

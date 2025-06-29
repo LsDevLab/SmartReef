@@ -8,6 +8,7 @@ extern bool fanActive;
 extern bool wavePump2Active;
 extern bool lightActive;
 extern bool forceModeActive;
+extern float targetFanTemp;
 
 extern int lightOnHour;
 extern int lightOffHour;

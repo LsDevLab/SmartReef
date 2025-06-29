@@ -52,11 +52,11 @@ void loop() {
 
     readAllSensors();
 
-    controlActuators();
-
     printStatus();
 
     uploadStatusToFirestore();
+
+    controlActuators();
 
     unsigned long startAttempt = millis();
     ledStatus.off();
