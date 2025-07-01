@@ -21,8 +21,8 @@ void refillTankSubcontrol();
 // control functions
 void setLightValue(bool on);
 bool getLightValue();
-void setFanValue(bool on);
-bool getFanValue();
+void setRefillPumpValue(bool on);
+bool getRefillPumpValue();
 //void setWavepump2Value(bool on);
 //bool getWavepump2Value();
 

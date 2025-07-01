@@ -148,21 +148,15 @@ void processData(AsyncResult &result) {
       if (path == "/actuators/forceModeActive") {
         forceModeActive = value == "true";
         setLightValue(lightActive);
-        setFanValue(fanActive);
-        digitalWrite(RELAY_FILL_PUMP, refillPumpActive ? LOW : HIGH);
+        setRefillPumpValue(refillPumpActive);
         logPrintln("Updated: forceMode");
       
       } else if (path == "/actuators/refillPumpActive") {
         refillPumpActive = value == "true";
-        digitalWrite(RELAY_FILL_PUMP, refillPumpActive ? LOW : HIGH);
+        setRefillPumpValue(refillPumpActive);
         logPrintln("Updated: refillPumpActive");
 
-      } else if (path == "/actuators/fanActive") {
-        fanActive = value == "true";
-        setFanValue(fanActive);
-        logPrintln("Updated: fanActive");
-
-      } else if (path == "/actuators/wavePump2Active") {
+      }  else if (path == "/actuators/wavePump2Active") {
         wavePump2Active = value == "true";
         //setWavepump2Value(wavePump2Active);
         logPrintln("Updated: wavePump2Active");

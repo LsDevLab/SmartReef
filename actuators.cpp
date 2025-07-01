@@ -26,17 +26,17 @@ int lightOffHour = 23;
 unsigned long pumpLastFilled;
 
 TapoDevice tapoLight;
-TapoDevice tapoFan;
+TapoDevice tapoRefillPump;
 
 void setupActuators() {
   pinMode(RELAY_FILL_PUMP, OUTPUT);
-  digitalWrite(RELAY_FILL_PUMP, !refillPumpActive);
+  digitalWrite(RELAY_FILL_PUMP, true);
   tapoLight.begin(TAPO_LIGHT_IP, TAPO_USERNAME, TAPO_PASSWORD);
-  tapoFan.begin(TAPO_FAN_IP, TAPO_USERNAME, TAPO_PASSWORD);
+  tapoRefillPump.begin(TAPO_REFILL_PUMP_IP, TAPO_USERNAME, TAPO_PASSWORD);
   lightActive = getLightValue();
-  fanActive = getFanValue();
+  refillPumpActive = getRefillPumpValue();
   setLightValue(lightActive);
-  setFanValue(fanActive);
+  setRefillPumpValue(refillPumpActive);
   //wavePump2Active = getWavepump2Value();
   logPrintln("Actuators initialized.");
 
@@ -64,7 +64,7 @@ void setControlVariables() {
     wavePump2Active = false;
     lightActive = true;
     setLightValue(lightActive);
-    setFanValue(fanActive);
+    setRefillPumpValue(refillPumpActive);
     //setWavepump2Value(wavePump2Active);
     return;
   }
@@ -72,25 +72,21 @@ void setControlVariables() {
   if(!forceModeActive){
     // light schedule
     lightActive = (timeinfo.tm_hour >= lightOnHour && timeinfo.tm_hour < lightOffHour);
-        logPrintln("targetFanTemp");
-        logPrintln((targetFanTemp - 0.1));
-        logPrintln((targetFanTemp + 0.1));
-        logPrintln(tempC);
-        logPrintln(tempC <= (targetFanTemp - 0.1));
-
-    if(tempC <= (targetFanTemp - 0.1)){
-      fanActive = false;
-    }
-    if(tempC >= (targetFanTemp + 0.1)){
-      fanActive = true;
-    }
+//
+//    if(tempC <= (targetFanTemp - 0.1)){
+//      fanActive = false;
+//    }
+//    if(tempC >= (targetFanTemp + 0.1)){
+//      fanActive = true;
+//    }
+    
   } else {
     logPrintln("Force mode active: skipping set control variables");
   }
 
   // ** now call cloud‑APIs **
   setLightValue(lightActive);
-  setFanValue(fanActive);
+  setRefillPumpValue(refillPumpActive);
   //setWavepump2Value(wavePump2Active);
 }
 
@@ -109,7 +105,7 @@ void refillTankSubcontrol() {
   }
 
   if(pumpLastFilled && millis() - pumpLastFilled < TANK_WATER_FILL_TIME_WINDOW){
-    logPrintln("Filled less than 12h ago");
+    logPrintln("Filled less than TANK_WATER_FILL_TIME_WINDOW ago");
     return;
   }
 
@@ -121,19 +117,20 @@ void refillTankSubcontrol() {
     // Keep pump on for up to TANK_WATER_FILL_TIME_TO
     if (millis() - pumpStart <= TANK_WATER_FILL_TIME_TO) {
       pumpLastFilled = millis();
-      digitalWrite(RELAY_FILL_PUMP, LOW);  // relay active low
+      setRefillPumpValue(refillPumpActive);
       ledStatus.setWaterRefilling();
       ledStatus.update();
-      delay(1000);
-    } else {
+      readAllSensors();
+      delay(5000);
+    } else if(timeout || tankFilled) {
       ledStatus.off();
       ledStatus.update();
       logPrintln("Refill Pump TIMEMOUT");
       timeout = true;
     }
   }
-  digitalWrite(RELAY_FILL_PUMP, HIGH);
   refillPumpActive = false;
+  setRefillPumpValue(refillPumpActive);
   logPrintln("Refill Pump: OFF");
 
   uploadRefillWaterStatusToFirestore();
@@ -151,16 +148,16 @@ bool getLightValue(){
     return tapoLight.getDeviceOn();
 }
 
-void setFanValue(bool on){
+void setRefillPumpValue(bool on){
   if(on){
-    tapoFan.on();
+    tapoRefillPump.on();
   } else {
-    tapoFan.off();
+    tapoRefillPump.off();
   }
 }
 
-bool getFanValue(){
-    return tapoFan.getDeviceOn();
+bool getRefillPumpValue(){
+    return tapoRefillPump.getDeviceOn();
 }
 
 //void setWavepump2Value(bool on){
