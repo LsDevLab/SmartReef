@@ -92,9 +92,9 @@ void setControlVariables() {
 
 void refillTankSubcontrol() {
   unsigned long pumpStart = millis();
-  bool timeout = false;
 
   if(forceModeActive) {
+    return;
     logPrintln("Force mode active: skipping refill tank");
   }
 
@@ -113,22 +113,21 @@ void refillTankSubcontrol() {
   logPrintln("Refill Pump: ON");
   uploadRefillWaterStatusToFirestore();
   
-  while (!timeout) { 
-    // Keep pump on for up to TANK_WATER_FILL_TIME_TO
-    if (millis() - pumpStart <= TANK_WATER_FILL_TIME_TO) {
+  while (millis() - pumpStart <= TANK_WATER_FILL_TIME_TO && !tankFilled) { 
       pumpLastFilled = millis();
       setRefillPumpValue(refillPumpActive);
       ledStatus.setWaterRefilling();
       ledStatus.update();
       readAllSensors();
+      logPrintln("Refill Pump: ON");
+      logPrintln(millis() - pumpStart);
+      logPrintln(TANK_WATER_FILL_TIME_TO);
+      logPrintln(tankFilled);
       delay(5000);
-    } else if(timeout || tankFilled) {
-      ledStatus.off();
-      ledStatus.update();
-      logPrintln("Refill Pump TIMEMOUT");
-      timeout = true;
-    }
   }
+ 
+  ledStatus.off();
+  ledStatus.update();
   refillPumpActive = false;
   setRefillPumpValue(refillPumpActive);
   logPrintln("Refill Pump: OFF");
